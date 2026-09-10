@@ -1,1 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
 
+<head>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Les cours, TPs et animations - Terminale</title>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #0f0f0f, #1c1c1c);
+      color: white;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 1000px;
+      margin: auto;
+      padding: 60px 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 300;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-weight: 300;
+      opacity: 0.7;
+    }
+
+    .separator {
+      width: 60%;
+      height: 2px;
+      background-color: white;
+      margin: 30px auto 50px auto;
+      opacity: 0.8;
+    }
+
+
+    /* THEMES */
+
+    details {
+      margin-bottom: 25px;
+      border-bottom: 1px solid #444;
+      padding-bottom: 15px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-size: 1.1em;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      padding: 12px 0;
+    }
+
+    summary:hover {
+      opacity: 0.7;
+    }
+
+    .theme-content {
+      padding: 10px 0 10px 25px;
+    }
+
+
+    /* DOCUMENTS */
+
+    .document {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+
+      padding: 13px 0;
+    }
+
+    .document-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .document-type {
+      font-size: 0.72em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.5;
+    }
+
+    .document-title {
+      font-size: 0.95em;
+    }
+
+    .open-button {
+      color: white;
+      text-decoration: none;
+      font-size: 0.85em;
+      opacity: 0.7;
+
+      transition: opacity 0.2s ease;
+    }
+
+    .open-button:hover {
+      opacity: 1;
+    }
+
+
+    /* NAVIGATION */
+
+    .navigation {
+      margin-top: 60px;
+      text-align: center;
+    }
+
+    .navigation a {
+      color: #aaa;
+      text-decoration: none;
+      font-size: 0.9em;
+      margin: 0 12px;
+    }
+
+    .navigation a:hover {
+      color: white;
+    }
+
+
+    @media (max-width: 600px) {
+
+      .document {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+  <h1>Les cours, TPs et animations</h1>
+
+  <p class="subtitle">
+    Terminale - Physique Chimie
+  </p>
+
+  <div class="separator"></div>
+
+
+
+  <!-- ACIDES ET BASES -->
+
+  <details>
+
+    <summary>
+      Acides et bases
+    </summary>
+
+    <div class="theme-content">
+
+
+      <div class="document">
+
+        <div class="document-info">
+
+          <span class="document-type">
+            Cours
+          </span>
+
+          <span class="document-title">
+            Acides et bases
+          </span>
+
+        </div>
+
+        <a
+          href="terminale/cours/acides-bases.pdf"
+          target="_blank"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
+
+      <div class="document">
+
+        <div class="document-info">
+
+          <span class="document-type">
+            TP
+          </span>
+
+          <span class="document-title">
+            TP - Acides et bases
+          </span>
+
+        </div>
+
+        <a
+          href="terminale/tp/tp-acides-bases.pdf"
+          target="_blank"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
+
+    </div>
+
+  </details>
+
+
+
+  <!-- METHODES PHYSIQUES D'ANALYSE -->
+
+  <details>
+
+    <summary>
+      Méthodes physiques d'analyse
+    </summary>
+
+    <div class="theme-content">
+
+
+      <div class="document">
+
+        <div class="document-info">
+
+          <span class="document-type">
+            Cours
+          </span>
+
+          <span class="document-title">
+            Méthodes physiques d'analyse
+          </span>
+
+        </div>
+
+        <a
+          href="terminale/cours/methodes-physiques-analyse.pdf"
+          target="_blank"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
+
+      <div class="document">
+
+        <div class="document-info">
+
+          <span class="document-type">
+            TP
+          </span>
+
+          <span class="document-title">
+            TP - Spectrophotométrie
+          </span>
+
+        </div>
+
+        <a
+          href="terminale/tp/tp-spectrophotometrie.pdf"
+          target="_blank"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
+
+    </div>
+
+  </details>
+
+
+
+  <!-- CINETIQUE -->
+
+  <details>
+
+    <summary>
+      Cinétique chimique
+    </summary>
+
+    <div class="theme-content">
+
+      <div class="document">
+
+        <div class="document-info">
+
+          <span class="document-type">
+            Cours
+          </span>
+
+          <span class="document-title">
+            Cinétique chimique
+          </span>
+
+        </div>
+
+        <a
+          href="terminale/cours/cinetique-chimique.pdf"
+          target="_blank"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
+    </div>
+
+  </details>
+
+
+
+  <div class="navigation">
+
+    <a href="terminale.html">
+      ← Terminale
+    </a>
+
+    <a href="index.html">
+      Accueil
+    </a>
+
+  </div>
+
+
+</div>
+
+</body>
+
+</html>
