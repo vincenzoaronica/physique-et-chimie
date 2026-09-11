@@ -1,1 +1,259 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explorez l’effet Doppler : réglez la vitesse d’une source et sa fréquence, puis observez la propagation des fronts d’onde.">
+  <title>Effet Doppler — simulation interactive</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f172a'/%3E%3Cg fill='none' stroke='%2338bdf8' stroke-width='1.5'%3E%3Ccircle cx='12' cy='16' r='11'/%3E%3Ccircle cx='16' cy='16' r='7'/%3E%3C/g%3E%3Ccircle cx='21' cy='16' r='3' fill='%23fb923c'/%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #e2e8f0; background: #0b1120; font-synthesis: none; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1120px; margin: 0 auto; padding: 28px 28px 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
+    .eyebrow { margin: 0 0 6px; color: #94a3b8; font-size: .875rem; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2rem); font-weight: 650; letter-spacing: -.025em; }
+    .regime { border: 1px solid #334155; border-radius: 999px; padding: 8px 12px; color: #bae6fd; font-size: .875rem; white-space: nowrap; }
+    .regime.fast { color: #fed7aa; border-color: #9a5d36; }
+    .stage { overflow: hidden; border: 1px solid #334155; border-radius: 14px; background: #0f172a; }
+    canvas { display: block; width: 100%; height: clamp(235px, 38vw, 390px); }
+    .legend { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 18px; border-top: 1px solid #253247; color: #b4c2d5; font-size: .875rem; }
+    .legend-items { display: flex; flex-wrap: wrap; gap: 20px; }
+    .legend span { display: inline-flex; align-items: center; gap: 8px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #fb923c; }
+    .wave { width: 16px; height: 10px; border: 2px solid #38bdf8; border-radius: 50%; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; row-gap: 16px; margin: 22px 0; }
+    .control { min-width: 0; }
+    label { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; font-size: 1rem; }
+    output { font-variant-numeric: tabular-nums; color: #f8fafc; font-weight: 600; }
+    input[type="range"] { width: 100%; margin: 6px 0 0; height: 32px; accent-color: #38bdf8; cursor: pointer; }
+    #speed { accent-color: #fb923c; }
+    .bounds { display: flex; justify-content: space-between; gap: 12px; color: #94a3b8; font-size: .875rem; }
+    .actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    button { min-height: 44px; padding: 10px 18px; border: 1px solid #475569; border-radius: 8px; font: inherit; font-size: .9375rem; font-weight: 550; cursor: pointer; background: #192438; color: #e2e8f0; }
+    button:hover { background: #26354e; }
+    #pause { min-width: 130px; background: #bae6fd; border-color: #bae6fd; color: #0c2536; }
+    #pause:hover { background: #e0f2fe; }
+    :focus-visible { outline: 3px solid #f8fafc; outline-offset: 4px; }
+    noscript p { padding: 20px; border: 1px solid #fb923c; }
+    @media (max-width: 600px) {
+      main { padding: 20px 16px; }
+      header { align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+      .controls { grid-template-columns: 1fr; gap: 16px; }
+      .legend { padding: 12px; }
+      .actions button { flex: 1 1 9rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><p class="eyebrow">Ondes · Simulation 2D</p><h1>Effet Doppler</h1></div>
+      <span id="regime" class="regime">Régime subsonique</span>
+    </header>
+    <noscript><p>Activez JavaScript dans votre navigateur pour utiliser cette animation.</p></noscript>
+    <div class="stage">
+      <canvas id="simulation" role="img" aria-label="Une source orange se déplace vers la droite. Les fronts d’onde bleus grandissent autour de leur point d’émission. Leur espacement varie avec la vitesse de la source.">Animation des fronts d’onde de l’effet Doppler.</canvas>
+      <div class="legend">
+        <div class="legend-items"><span><i class="dot" aria-hidden="true"></i>Source</span><span><i class="wave" aria-hidden="true"></i>Front d’onde</span></div>
+        <span id="playback" role="status">Animation en cours</span>
+      </div>
+    </div>
+    <div class="controls" aria-label="Réglages de la simulation">
+      <div class="control">
+        <label for="speed">Vitesse de la source <output id="speed-value" for="speed">0,55 c</output></label>
+        <input id="speed" type="range" min="0" max="1.1" step="0.01" value="0.55" aria-describedby="speed-help">
+        <div id="speed-help" class="bounds"><span>0 c · immobile</span><span>1,10 c</span></div>
+      </div>
+      <div class="control">
+        <label for="frequency">Fréquence émise</label>
+        <input id="frequency" type="range" min="0.5" max="2.5" step="0.05" value="1.25">
+      </div>
+      <div class="actions"><button id="pause" type="button">Pause</button><button id="reset" type="button">Réinitialiser</button></div>
+    </div>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+
+    // Même monde et mêmes valeurs initiales que dans la version Python.
+    const C = 2, WORLD_WIDTH = 12, WORLD_HEIGHT = 6, START_X = 1.2, SOURCE_Y = 3;
+    const MAX_RADIUS = Math.hypot(WORLD_WIDTH, WORLD_HEIGHT);
+    const $ = id => document.getElementById(id);
+    const canvas = $("simulation"), ctx = canvas.getContext("2d");
+    const speed = $("speed"), frequency = $("frequency");
+    const pauseButton = $("pause");
+    const format = value => value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let beta = Number(speed.value), f0 = Number(frequency.value);
+    let time = 0, sourceX = START_X, phase = 0;
+    let fronts = [{ x: START_X, y: SOURCE_Y, emittedAt: 0 }];
+    let paused = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let previousTimestamp = null, frameId = null;
+    let width = 1, height = 1, pixelRatio = 1;
+
+    function updateControls() {
+      $("speed-value").textContent = format(beta) + " c";
+      speed.setAttribute("aria-valuetext", format(beta) + " fois la vitesse de propagation");
+      frequency.setAttribute("aria-valuetext", format(f0) + " hertz");
+      const subsonic = beta < 1;
+      $("regime").textContent = beta === 0 ? "Source immobile" : subsonic ? "Régime subsonique" : beta === 1 ? "Régime sonique" : "Régime supersonique";
+      $("regime").classList.toggle("fast", !subsonic);
+
+    }
+
+    function reset() {
+      time = 0;
+      sourceX = START_X;
+      phase = 0;
+      fronts = [{ x: START_X, y: SOURCE_Y, emittedAt: 0 }];
+      previousTimestamp = null;
+      draw();
+    }
+
+    function advance(dt) {
+      const velocity = beta * C;
+      // Intégrer la phase évite les émissions en rafale quand f₀ change.
+      // Reconstituer l'instant ET la position de chaque émission entre deux images.
+      const previousPhase = phase;
+      const totalPhase = previousPhase + f0 * dt;
+      const emissions = Math.floor(totalPhase + 1e-12);
+      for (let n = 1; n <= emissions; n++) {
+        const offset = Math.max(0, Math.min(dt, (n - previousPhase) / f0));
+        fronts.push({ x: sourceX + velocity * offset, y: SOURCE_Y, emittedAt: time + offset });
+      }
+      phase = Math.max(0, totalPhase - emissions);
+      time += dt;
+      sourceX += velocity * dt;
+      fronts = fronts.filter(front => C * (time - front.emittedAt) <= MAX_RADIUS);
+      if (sourceX > WORLD_WIDTH + 0.3) reset();
+    }
+
+    function draw() {
+      if (!ctx) return;
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      const margin = width < 500 ? 18 : 30;
+      const scale = Math.max(.01, Math.min((width - 2 * margin) / WORLD_WIDTH, (height - 2 * margin) / WORLD_HEIGHT));
+      const originX = (width - WORLD_WIDTH * scale) / 2;
+      const originY = (height - WORLD_HEIGHT * scale) / 2;
+      const axisY = originY + SOURCE_Y * scale;
+      ctx.save();
+      // Axe du mouvement ; le fond reste uni, sans grille.
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "#475569";
+      ctx.setLineDash([5, 6]);
+      ctx.beginPath(); ctx.moveTo(originX, axisY); ctx.lineTo(width - originX, axisY); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.8;
+      for (const front of fronts) {
+        const radius = C * Math.max(0, time - front.emittedAt) * scale;
+        ctx.beginPath();
+        ctx.arc(originX + front.x * scale, originY + (WORLD_HEIGHT - front.y) * scale, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const sx = originX + sourceX * scale;
+      ctx.fillStyle = "#fb923c";
+      ctx.beginPath(); ctx.arc(sx, axisY, 7, 0, Math.PI * 2); ctx.fill();
+      if (beta > 0) {
+        ctx.beginPath(); ctx.moveTo(sx + 16, axisY); ctx.lineTo(sx + 3, axisY - 8); ctx.lineTo(sx + 3, axisY + 8); ctx.closePath(); ctx.fill();
+      }
+      ctx.font = "14px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillText("source", Math.min(width - 30, Math.max(30, sx)), axisY - 22);
+      if (beta > 0) {
+        const x1 = originX + 8, x2 = x1 + Math.min(110, WORLD_WIDTH * scale * .32), y = height - 25;
+        ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.lineTo(x2 - 6, y - 4); ctx.moveTo(x2, y); ctx.lineTo(x2 - 6, y + 4); ctx.stroke();
+        ctx.fillStyle = "#b4c2d5"; ctx.textAlign = "left"; ctx.fillText("mouvement", x1, y - 12);
+      }
+      ctx.restore();
+    }
+
+    function resize() {
+      const bounds = canvas.getBoundingClientRect();
+      width = Math.max(1, bounds.width);
+      height = Math.max(1, bounds.height);
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      draw();
+    }
+
+    function tick(timestamp) {
+      frameId = null;
+      if (paused || document.hidden) { previousTimestamp = null; return; }
+      if (previousTimestamp !== null) advance(Math.min((timestamp - previousTimestamp) / 1000, .05));
+      previousTimestamp = timestamp;
+      draw();
+      frameId = requestAnimationFrame(tick);
+    }
+
+    function syncPlayback() {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+      frameId = null;
+      previousTimestamp = null;
+      pauseButton.textContent = paused ? "Reprendre" : "Pause";
+      $("playback").textContent = paused ? "Animation en pause" : "Animation en cours";
+      if (!paused && !document.hidden) frameId = requestAnimationFrame(tick);
+    }
+
+    function parametersChanged() {
+      beta = Number(speed.value);
+      f0 = Number(frequency.value);
+      updateControls();
+      draw();
+    }
+    speed.addEventListener("input", parametersChanged);
+    frequency.addEventListener("input", parametersChanged);
+    pauseButton.addEventListener("click", () => { paused = !paused; syncPlayback(); });
+    $("reset").addEventListener("click", reset);
+    document.addEventListener("visibilitychange", syncPlayback);
+    window.addEventListener("resize", resize);
+    if (typeof ResizeObserver !== "undefined") new ResizeObserver(resize).observe(canvas);
+    updateControls();
+    resize();
+    syncPlayback();
+
+    // Intégration facultative dans les navigateurs qui proposent WebMCP.
+    // Aucun effet sur les navigateurs ordinaires et aucune dépendance externe.
+    if (document.modelContext?.registerTool) {
+      const lifecycle = new AbortController();
+      const state = () => ({ beta, frequencyHz: f0, paused });
+      try {
+        Promise.resolve(document.modelContext.registerTool({
+          name: "configure_doppler_simulation",
+          title: "Régler la simulation Doppler",
+          description: "Modifie les réglages visibles et peut mettre en pause ou recommencer le trajet.",
+          inputSchema: { type: "object", properties: {
+            beta: { type: "number", minimum: 0, maximum: 1.1 },
+            frequencyHz: { type: "number", minimum: .5, maximum: 2.5 },
+            paused: { type: "boolean" }, reset: { type: "boolean" }
+          }, additionalProperties: false },
+          annotations: { readOnlyHint: false, untrustedContentHint: false },
+          execute(input) {
+            if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Objet de réglages attendu.");
+            for (const [key, value] of Object.entries(input)) {
+              if (!["beta", "frequencyHz", "paused", "reset"].includes(key)) throw new Error("Réglage inconnu.");
+              if (key === "beta" && (!Number.isFinite(value) || value < 0 || value > 1.1)) throw new Error("Vitesse invalide.");
+              if (key === "frequencyHz" && (!Number.isFinite(value) || value < .5 || value > 2.5)) throw new Error("Fréquence invalide.");
+              if ((key === "paused" || key === "reset") && typeof value !== "boolean") throw new Error("Booléen attendu.");
+            }
+            if (input.beta !== undefined) speed.value = String(Math.round(input.beta * 100) / 100);
+            if (input.frequencyHz !== undefined) frequency.value = String(Math.round(input.frequencyHz * 20) / 20);
+            parametersChanged();
+            if (input.paused !== undefined) { paused = input.paused; syncPlayback(); }
+            if (input.reset) reset();
+            return state();
+          }
+        }, { signal: lifecycle.signal })).catch(() => {});
+      } catch { /* Le fonctionnement manuel reste disponible. */ }
+      window.addEventListener("pagehide", event => { if (!event.persisted) lifecycle.abort(); });
+    }
+  })();
+  </script>
+</body>
+</html>
 
