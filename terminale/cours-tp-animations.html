@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -83,8 +84,17 @@
       justify-content: space-between;
       align-items: center;
       gap: 20px;
-
       padding: 13px 0;
+    }
+
+    /*
+      Document appartenant au même type que celui juste au-dessus.
+      Cela permet de rapprocher plusieurs animations entre elles
+      sans modifier l'espacement entre Cours / TP / Animation.
+    */
+
+    .document.same-type {
+      padding: 2px 0;
     }
 
     .document-info {
@@ -109,12 +119,30 @@
       text-decoration: none;
       font-size: 0.85em;
       opacity: 0.7;
-
       transition: opacity 0.2s ease;
     }
 
     .open-button:hover {
       opacity: 1;
+    }
+
+
+    /* IMAGE */
+
+    .terminale-image {
+      width: 320px;
+      max-width: 80%;
+      margin: 0 auto 45px auto;
+      background-color: #000;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .terminale-image img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
     }
 
 
@@ -137,6 +165,8 @@
     }
 
 
+    /* VERSION MOBILE */
+
     @media (max-width: 600px) {
 
       .document {
@@ -145,22 +175,6 @@
       }
 
     }
-
-    .terminale-image {
-  width: 320px;
-  max-width: 80%;
-  margin: 0 auto 45px auto;
-  background-color: #000;
-  padding: 10px;
-  border-radius: 8px;
-}
-
-.terminale-image img {
-  width: 100%;
-  height: auto;
-  display: block;
-  border-radius: 4px;
-}
 
   </style>
 
@@ -180,10 +194,15 @@
 
   <div class="separator"></div>
 
-<div class="terminale-image">
-  <img src="../images/image-terminale-2.png"
-       alt="Illustration Terminale Physique Chimie">
-</div>
+
+  <div class="terminale-image">
+    <img
+      src="../images/image-terminale-2.png"
+      alt="Illustration Terminale Physique Chimie"
+    >
+  </div>
+
+
 
   <!-- ACIDES ET BASES -->
 
@@ -195,6 +214,8 @@
 
     <div class="theme-content">
 
+
+      <!-- COURS -->
 
       <div class="document">
 
@@ -220,7 +241,10 @@
 
       </div>
 
-        <div class="document">
+
+      <!-- CORRECTION -->
+
+      <div class="document">
 
         <div class="document-info">
 
@@ -244,6 +268,8 @@
 
       </div>
 
+
+      <!-- TP -->
 
       <div class="document">
 
@@ -285,16 +311,19 @@
     </summary>
 
     <div class="theme-content">
+
       <div class="document">
+
         <div class="document-info">
-          
+
           <span class="document-type">
             Cours
           </span>
-          
+
           <span class="document-title">
             Méthodes physiques d'analyse
           </span>
+
         </div>
 
         <a
@@ -304,13 +333,16 @@
         >
           Ouvrir →
         </a>
-        
+
       </div>
+
     </div>
+
   </details>
 
 
-  <!-- EFFET DOPPLER-->
+
+  <!-- EFFET DOPPLER -->
 
   <details>
 
@@ -319,16 +351,19 @@
     </summary>
 
     <div class="theme-content">
+
       <div class="document">
+
         <div class="document-info">
-          
+
           <span class="document-type">
             Animation
           </span>
-          
+
           <span class="document-title">
             Effet Doppler
           </span>
+
         </div>
 
         <a
@@ -339,98 +374,109 @@
         >
           Ouvrir →
         </a>
-        
+
       </div>
+
     </div>
+
   </details>
 
 
- <!-- DIFFRACTION ET INTERFERENCE -->
 
-<details>
+  <!-- DIFFRACTION ET INTERFERENCE -->
 
-  <summary>
-    Diffraction et Interférence
-  </summary>
+  <details>
 
-  <div class="theme-content">
+    <summary>
+      Diffraction et Interférence
+    </summary>
 
-    <!-- Diffraction -->
-    <div class="document">
-
-      <div class="document-info">
-
-        <span class="document-type">
-          Animation
-        </span>
-
-        <span class="document-title">
-          Diffraction
-        </span>
-
-      </div>
-
-      <a
-        href="animation/diffraction.html"
-        target="_blank"
-        rel="noopener"
-        class="open-button"
-      >
-        Ouvrir →
-      </a>
-
-    </div>
+    <div class="theme-content">
 
 
-    <!-- Interférence -->
-    <div class="document">
+      <!-- ANIMATION : DIFFRACTION -->
 
-      <div class="document-info">
+      <div class="document">
 
-        <span class="document-title">
-          Interférence 2D
-        </span>
+        <div class="document-info">
+
+          <span class="document-type">
+            Animation
+          </span>
+
+          <span class="document-title">
+            Diffraction
+          </span>
+
+        </div>
+
+        <a
+          href="animation/diffraction.html"
+          target="_blank"
+          rel="noopener"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
 
       </div>
 
-      <a
-        href="animation/interference_2D.html"
-        target="_blank"
-        rel="noopener"
-        class="open-button"
-      >
-        Ouvrir →
-      </a>
 
-    </div>
+      <!-- ANIMATION : INTERFERENCE 2D -->
 
+      <div class="document same-type">
 
-      <!-- Interférence -->
-    <div class="document">
+        <div class="document-info">
 
-      <div class="document-info">
+          <span class="document-title">
+            Interférence 2D
+          </span>
 
-        <span class="document-title">
-          Interférence Condition
-        </span>
+        </div>
+
+        <a
+          href="animation/interference_2D.html"
+          target="_blank"
+          rel="noopener"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
 
       </div>
 
-      <a
-        href="animation/interference_constructive.html"
-        target="_blank"
-        rel="noopener"
-        class="open-button"
-      >
-        Ouvrir →
-      </a>
+
+      <!-- ANIMATION : INTERFERENCE CONDITION -->
+
+      <div class="document same-type">
+
+        <div class="document-info">
+
+          <span class="document-title">
+            Interférence Condition
+          </span>
+
+        </div>
+
+        <a
+          href="animation/interference_constructive.html"
+          target="_blank"
+          rel="noopener"
+          class="open-button"
+        >
+          Ouvrir →
+        </a>
+
+      </div>
+
 
     </div>
 
-  </div>
+  </details>
 
-</details>
 
+
+  <!-- NAVIGATION -->
 
   <div class="navigation">
 
@@ -450,3 +496,4 @@
 </body>
 
 </html>
+```
