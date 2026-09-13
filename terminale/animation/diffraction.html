@@ -67,27 +67,19 @@
   (() => {
     "use strict";
 
-    // PARAMÈTRES MODIFIABLES — valeurs conservées du fichier Python fourni.
+    // PARAMÈTRES MODIFIABLES
     const CONFIG = {
       X_MIN: -5.5, X_MAX: 10.5,
       X_PAROI: -2.0,
       Y_MIN: -4.0, Y_MAX: 4.0,
       CELERITE: 3,
-      IMAGES_PAR_BANDE: 6,
+      IMAGES_PAR_BANDE: 12,
       NB_SOURCES: 61,
-      PAROI: "#44eff8",  // Par exemple : "#3A3A3A" pour du gris foncé.
+      PAROI: "#44eff8",  
       CYAN: "#48e9ff",
       NX: 641, NY: 321
     };
 
-    /*
-     * Portage du modèle de Huygens du script Python, avec les mêmes retards,
-     * la même rampe de démarrage et le même gain de couleur.
-     * Les calculs utilisent la symétrie autour de y=0 pour alléger le rendu.
-     * Les couleurs représentent |champ| avec un gain visuel ; les bandes
-     * lumineuses sont espacées de λ/2, comme dans le script fourni.
-     * Les réflexions sur la paroi ne sont pas calculées.
-     */
     function creerModele(config) {
       const { X_MIN, X_MAX, X_PAROI, Y_MAX, CELERITE, NB_SOURCES, NX, NY } = config;
       const dx = (X_MAX - X_MIN) / (NX - 1);
