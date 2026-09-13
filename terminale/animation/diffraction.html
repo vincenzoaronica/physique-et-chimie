@@ -1,1 +1,472 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Une onde plane arrive sur une ouverture et se diffracte. Réglez la longueur d’onde et la largeur de l’ouverture.">
+  <title>Diffraction par une ouverture</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #02040d; color: #d9f7ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(1140px, 100%); margin: auto; padding: 24px 20px; }
+    h1 { margin: 0 0 22px; text-align: center; font-size: clamp(1.3rem, 3.2vw, 1.8rem); font-weight: 550; }
+    .scene { position: relative; overflow: hidden; border: 1px solid #27445a; background: #000; }
+    canvas { display: block; width: 100%; aspect-ratio: 2 / 1; }
+    .legendes { position: absolute; inset: 14px 0 auto; display: grid; pointer-events: none; text-align: center; font-size: clamp(.75rem, 1.4vw, .9375rem); }
+    .legendes span { justify-self: center; max-width: 100%; padding: 4px 6px; background: rgb(0 0 0 / .88); }
+    .controles { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 40px; margin: 26px 0 0; align-items: center; }
+    .curseurs { display: grid; gap: 18px; }
+    label { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: 1rem; }
+    output { font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 32px; margin: 4px 0 0; accent-color: #48e9ff; cursor: pointer; }
+    .actions { display: grid; gap: 12px; }
+    button { min-height: 46px; min-width: 150px; padding: 10px 20px; border: 1px solid #27445a; border-radius: 4px; background: #10283a; color: #d9f7ff; font: inherit; cursor: pointer; }
+    button:hover { background: #1b4056; }
+    :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
+    #etat { min-height: 1.5em; margin: 12px 0 0; color: #7fa6b8; font-size: .875rem; }
+    noscript p { padding: 16px; border: 1px solid #48e9ff; }
+    @media (max-width: 600px) {
+      main { padding: 18px 12px; }
+      h1 { margin-bottom: 16px; }
+      .legendes { top: 6px; }
+      .controles { grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
+      .actions { display: flex; flex-wrap: wrap; }
+      .actions button { flex: 1 1 9rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Diffraction par une ouverture</h1>
+    <noscript><p>Activez JavaScript dans votre navigateur pour utiliser cette animation.</p></noscript>
+    <div class="scene">
+      <canvas id="ondes" width="1100" height="550" role="img" aria-label="Une onde plane arrive de la gauche sur une paroi percée. Après son arrivée à l’ouverture, des ondes diffractées se propagent à droite."></canvas>
+      <div class="legendes" aria-hidden="true"><span>Onde plane →</span><span>Onde diffractée</span></div>
+    </div>
+    <div class="controles">
+      <div class="curseurs">
+        <div>
+          <label for="lambda">Longueur d’onde λ <output id="valeur-lambda" for="lambda">1,00</output></label>
+          <input id="lambda" type="range" min="0.40" max="2.00" step="0.02" value="1.00">
+        </div>
+        <div>
+          <label for="ouverture">Largeur de l’ouverture a <output id="valeur-ouverture" for="ouverture">0,40</output></label>
+          <input id="ouverture" type="range" min="0.20" max="4.00" step="0.02" value="0.40">
+        </div>
+      </div>
+      <div class="actions">
+        <button id="pause" type="button">Pause</button>
+        <button id="reset" type="button">Réinitialiser</button>
+      </div>
+    </div>
+    <p id="etat" role="status">Préparation de l’onde…</p>
+  </main>
+
+  <script>
+  (() => {
+    "use strict";
+
+    // PARAMÈTRES MODIFIABLES — valeurs conservées du fichier Python fourni.
+    const CONFIG = {
+      X_MIN: -5.5, X_MAX: 10.5,
+      X_PAROI: -2.0,
+      Y_MIN: -4.0, Y_MAX: 4.0,
+      CELERITE: 3,
+      IMAGES_PAR_BANDE: 6,
+      NB_SOURCES: 61,
+      PAROI: "#44eff8",  // Par exemple : "#3A3A3A" pour du gris foncé.
+      CYAN: "#48e9ff",
+      NX: 641, NY: 321
+    };
+
+    /*
+     * Portage du modèle de Huygens du script Python, avec les mêmes retards,
+     * la même rampe de démarrage et le même gain de couleur.
+     * Les calculs utilisent la symétrie autour de y=0 pour alléger le rendu.
+     * Les couleurs représentent |champ| avec un gain visuel ; les bandes
+     * lumineuses sont espacées de λ/2, comme dans le script fourni.
+     * Les réflexions sur la paroi ne sont pas calculées.
+     */
+    function creerModele(config) {
+      const { X_MIN, X_MAX, X_PAROI, Y_MAX, CELERITE, NB_SOURCES, NX, NY } = config;
+      const dx = (X_MAX - X_MIN) / (NX - 1);
+      const milieu = (NY - 1) / 2;
+      const dy = Y_MAX / milieu;
+      const premiereColonne = Math.ceil((X_PAROI - X_MIN) / dx - 1e-10);
+      const colonnesDroites = NX - premiereColonne;
+      const taille = (milieu + 1) * colonnesDroites;
+      const xs = new Float64Array(colonnesDroites);
+      for (let col = 0; col < colonnesDroites; col++) {
+        xs[col] = Math.max(0, X_MIN + (premiereColonne + col) * dx - X_PAROI);
+      }
+      const positions = new Float64Array(NB_SOURCES);
+      const reel = new Float64Array(taille);
+      const imaginaire = new Float64Array(taille);
+      const distancesMin = new Float64Array(taille);
+      const distancesMax = new Float64Array(taille);
+      const amplitudes = new Float64Array(taille);
+      const gain = new Float64Array(taille);
+      const palette = new Uint8ClampedArray(2048 * 3);
+      const pixelGauche = new Uint16Array(premiereColonne);
+      for (let i = 0; i < 2048; i++) {
+        const niveau = i / 2047;
+        palette[3 * i] = Math.round(255 * niveau ** 2.8);
+        palette[3 * i + 1] = Math.round(255 * niveau ** 1.8);
+        palette[3 * i + 2] = Math.round(255 * niveau);
+      }
+      const instantArrivee = (X_PAROI - X_MIN) / CELERITE;
+      let k = 0, omega = 0, longueurRampe = 1, poids = 1, echelle = 1;
+
+      function rampe(v) {
+        if (v <= 0) return 0;
+        if (v >= 1) return 1;
+        return v * v * (3 - 2 * v);
+      }
+
+      function configurer(longueurOnde, largeur) {
+        if (!Number.isFinite(longueurOnde) || longueurOnde < 0.4 || longueurOnde > 2 ||
+            !Number.isFinite(largeur) || largeur < 0.2 || largeur > 4) {
+          throw new Error("Les réglages de l’onde sont hors limites.");
+        }
+        k = 2 * Math.PI / longueurOnde;
+        omega = k * CELERITE;
+        longueurRampe = 0.6 * longueurOnde;
+        poids = largeur / NB_SOURCES;
+        const demi = largeur / 2;
+        for (let source = 0; source < NB_SOURCES; source++) {
+          positions[source] = -demi + (source + 0.5) * poids;
+        }
+
+        // Reproduire le percentile 80 de NumPy, en comptant les deux demi-plans.
+        const calibrage = new Float64Array(NY * colonnesDroites);
+        let compte = 0;
+        for (let ligne = 0; ligne <= milieu; ligne++) {
+          const y = ligne * dy;
+          for (let col = 0; col < colonnesDroites; col++) {
+            const index = ligne * colonnesDroites + col;
+            const x = xs[col], xx = x * x;
+            let re = 0, im = 0;
+            for (let source = 0; source < NB_SOURCES; source++) {
+              const ecart = y - positions[source];
+              const distance = Math.sqrt(xx + ecart * ecart);
+              const attenuation = poids / Math.sqrt(Math.max(distance, 0.08));
+              re += attenuation * Math.cos(k * distance);
+              im += attenuation * Math.sin(k * distance);
+            }
+            reel[index] = re;
+            imaginaire[index] = im;
+            const amplitude = Math.hypot(re, im);
+            amplitudes[index] = amplitude;
+            const proche = Math.max(y - demi, 0);
+            distancesMin[index] = Math.sqrt(xx + proche * proche);
+            distancesMax[index] = Math.sqrt(xx + (y + demi) ** 2);
+            if (x > 0.4) {
+              calibrage[compte++] = amplitude;
+              if (ligne > 0) calibrage[compte++] = amplitude;
+            }
+          }
+        }
+        const valeurs = calibrage.subarray(0, compte);
+        valeurs.sort();
+        const position = 0.8 * (compte - 1);
+        const bas = Math.floor(position), fraction = position - bas;
+        echelle = Math.max(1e-12,
+          valeurs[bas] * (1 - fraction) + valeurs[Math.min(bas + 1, compte - 1)] * fraction);
+        for (let i = 0; i < taille; i++) {
+          gain[i] = 0.95 / Math.sqrt(1 + (amplitudes[i] / echelle) ** 2);
+        }
+      }
+
+      function rendre(temps, tampon) {
+        const octets = NX * NY * 4;
+        const pixels = tampon && tampon.byteLength === octets
+          ? new Uint8ClampedArray(tampon) : new Uint8ClampedArray(octets);
+        // Onde incidente : chaque verticale possède le même champ.
+        for (let col = 0; col < premiereColonne; col++) {
+          const age = temps - col * dx / CELERITE;
+          const enveloppe = rampe(age * CELERITE / longueurRampe);
+          const luminosite = Math.abs(enveloppe * Math.cos(omega * age)) * 0.90;
+          pixelGauche[col] = Math.min(2047, Math.floor(luminosite * 2048));
+        }
+        for (let ligne = 0; ligne < NY; ligne++) {
+          let pixel = ligne * NX * 4;
+          for (let col = 0; col < premiereColonne; col++, pixel += 4) {
+            const couleur = 3 * pixelGauche[col];
+            pixels[pixel] = palette[couleur];
+            pixels[pixel + 1] = palette[couleur + 1];
+            pixels[pixel + 2] = palette[couleur + 2];
+            pixels[pixel + 3] = 255;
+          }
+        }
+
+        const ageSortie = temps - instantArrivee;
+        const rayon = CELERITE * ageSortie;
+        const phase = omega * ageSortie;
+        const cosPhase = Math.cos(phase), sinPhase = Math.sin(phase);
+        for (let ligne = 0; ligne <= milieu; ligne++) {
+          const y = ligne * dy;
+          let pixelHaut = ((milieu - ligne) * NX + premiereColonne) * 4;
+          let pixelBas = ((milieu + ligne) * NX + premiereColonne) * 4;
+          for (let col = 0; col < colonnesDroites; col++, pixelHaut += 4, pixelBas += 4) {
+            const index = ligne * colonnesDroites + col;
+            let champ = 0;
+            if (ageSortie > 0 && rayon > distancesMin[index]) {
+              if (rayon >= distancesMax[index] + longueurRampe) {
+                champ = reel[index] * cosPhase + imaginaire[index] * sinPhase;
+              } else {
+                const x = xs[col], xx = x * x;
+                for (let source = 0; source < NB_SOURCES; source++) {
+                  const ecart = y - positions[source];
+                  const distance = Math.sqrt(xx + ecart * ecart);
+                  if (rayon <= distance) continue;
+                  const enveloppe = rampe((rayon - distance) / longueurRampe);
+                  champ += poids * enveloppe * Math.cos(k * distance - phase)
+                    / Math.sqrt(Math.max(distance, 0.08));
+                }
+              }
+            }
+            const luminosite = Math.abs(champ / echelle) * gain[index];
+            const couleur = 3 * Math.min(2047, Math.floor(luminosite * 2048));
+            pixels[pixelHaut] = pixels[pixelBas] = palette[couleur];
+            pixels[pixelHaut + 1] = pixels[pixelBas + 1] = palette[couleur + 1];
+            pixels[pixelHaut + 2] = pixels[pixelBas + 2] = palette[couleur + 2];
+            pixels[pixelHaut + 3] = pixels[pixelBas + 3] = 255;
+          }
+        }
+        return pixels.buffer;
+      }
+      return { configurer, rendre };
+    }
+
+    const canvas = document.getElementById("ondes");
+    const ctx = canvas.getContext("2d");
+    const raster = document.createElement("canvas");
+    raster.width = CONFIG.NX;
+    raster.height = CONFIG.NY;
+    const rasterCtx = raster.getContext("2d");
+    const lambda = document.getElementById("lambda");
+    const ouverture = document.getElementById("ouverture");
+    const boutonPause = document.getElementById("pause");
+    const etat = document.getElementById("etat");
+    const format = v => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const largeurMonde = CONFIG.X_MAX - CONFIG.X_MIN;
+    const hauteurMonde = CONFIG.Y_MAX - CONFIG.Y_MIN;
+    const proportionGauche = (CONFIG.X_PAROI - CONFIG.X_MIN) / largeurMonde;
+    document.querySelector(".legendes").style.gridTemplateColumns =
+      `${proportionGauche * 100}% ${(1 - proportionGauche) * 100}%`;
+    canvas.style.aspectRatio = `${largeurMonde} / ${hauteurMonde}`;
+
+    let longueurOnde = Number(lambda.value), largeur = Number(ouverture.value);
+    let temps = 0, dernierInstant = null, numeroAnimation = null, temporisation = null;
+    let enPause = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let pret = false, occupe = false, generation = 0, tamponLibre = null;
+    let worker = null, modeleLocal = null;
+    let largeurCanvas = 1, hauteurCanvas = 1, ratioPixels = 1;
+
+    function dessinerScene() {
+      if (!ctx) return;
+      ctx.setTransform(ratioPixels, 0, 0, ratioPixels, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.clearRect(0, 0, largeurCanvas, hauteurCanvas);
+      ctx.drawImage(raster, 0, 0, largeurCanvas, hauteurCanvas);
+      const xParoi = proportionGauche * largeurCanvas;
+      const yHaut = (CONFIG.Y_MAX - largeur / 2) / hauteurMonde * hauteurCanvas;
+      const yBas = (CONFIG.Y_MAX + largeur / 2) / hauteurMonde * hauteurCanvas;
+      ctx.strokeStyle = CONFIG.PAROI;
+      ctx.lineWidth = Math.max(3, Math.min(9, largeurCanvas * 0.007));
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      ctx.moveTo(xParoi, 0); ctx.lineTo(xParoi, yHaut);
+      ctx.moveTo(xParoi, yBas); ctx.lineTo(xParoi, hauteurCanvas);
+      ctx.stroke();
+      ctx.fillStyle = CONFIG.CYAN;
+      for (const y of [yHaut, yBas]) {
+        ctx.beginPath(); ctx.arc(xParoi, y, Math.max(2, ctx.lineWidth * 0.4), 0, 2 * Math.PI); ctx.fill();
+      }
+    }
+
+    function redimensionner() {
+      const boite = canvas.getBoundingClientRect();
+      largeurCanvas = Math.max(1, boite.width);
+      hauteurCanvas = Math.max(1, boite.height);
+      ratioPixels = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(largeurCanvas * ratioPixels);
+      canvas.height = Math.round(hauteurCanvas * ratioPixels);
+      dessinerScene();
+    }
+
+    function annulerImage() {
+      if (numeroAnimation !== null) cancelAnimationFrame(numeroAnimation);
+      numeroAnimation = null;
+    }
+    function programmerImage() {
+      if (pret && !occupe && !enPause && !document.hidden && numeroAnimation === null) {
+        numeroAnimation = requestAnimationFrame(animer);
+      }
+    }
+    function actualiserEtat() {
+      boutonPause.textContent = enPause ? "Reprendre" : "Pause";
+      etat.textContent = !pret ? "Préparation de l’onde…" : enPause ? "Animation en pause" : "";
+    }
+    function erreur(message) {
+      pret = false;
+      occupe = false;
+      annulerImage();
+      etat.textContent = "L’animation n’a pas pu démarrer. " + message;
+    }
+
+    function recevoir(message) {
+      if (message.generation !== generation) return;
+      if (message.type === "erreur") { erreur(message.message); return; }
+      occupe = false;
+      if (message.type === "pret") {
+        pret = true;
+        dernierInstant = null;
+        actualiserEtat();
+      }
+      const pixels = new Uint8ClampedArray(message.tampon);
+      rasterCtx.putImageData(new ImageData(pixels, CONFIG.NX, CONFIG.NY), 0, 0);
+      tamponLibre = message.tampon;
+      dessinerScene();
+      programmerImage();
+    }
+
+    function envoyer(message) {
+      if (worker) {
+        worker.postMessage(message, message.tampon ? [message.tampon] : []);
+        return;
+      }
+      // Repli sur le fil principal si les Workers sont indisponibles ou bloqués.
+      setTimeout(() => {
+        if (message.generation !== generation) return;
+        try {
+          if (!modeleLocal) modeleLocal = creerModele(CONFIG);
+          if (message.type === "configurer") modeleLocal.configurer(message.lambda, message.largeur);
+          recevoir({
+            type: message.type === "configurer" ? "pret" : "image",
+            generation: message.generation,
+            tampon: modeleLocal.rendre(message.temps || 0, message.tampon)
+          });
+        } catch (e) { erreur(e.message); }
+      }, 0);
+    }
+
+    function reinitialiser() {
+      clearTimeout(temporisation);
+      temporisation = null;
+      annulerImage();
+      generation++;
+      temps = 0;
+      dernierInstant = null;
+      pret = false;
+      occupe = true;
+      tamponLibre = null;
+      rasterCtx.clearRect(0, 0, CONFIG.NX, CONFIG.NY);
+      dessinerScene();
+      actualiserEtat();
+      envoyer({ type: "configurer", generation, lambda: longueurOnde, largeur });
+    }
+
+    function modifierParametres() {
+      longueurOnde = Number(lambda.value);
+      largeur = Number(ouverture.value);
+      document.getElementById("valeur-lambda").textContent = format(longueurOnde);
+      document.getElementById("valeur-ouverture").textContent = format(largeur);
+      lambda.setAttribute("aria-valuetext", format(longueurOnde));
+      ouverture.setAttribute("aria-valuetext", format(largeur));
+      // Attendre brièvement la fin du mouvement du curseur pour ne pas empiler
+      // les recalculs. La paroi et les valeurs répondent immédiatement.
+      generation++;
+      pret = false;
+      annulerImage();
+      clearTimeout(temporisation);
+      rasterCtx.clearRect(0, 0, CONFIG.NX, CONFIG.NY);
+      dessinerScene();
+      actualiserEtat();
+      temporisation = setTimeout(reinitialiser, 100);
+    }
+
+    function basculerPause() {
+      enPause = !enPause;
+      dernierInstant = null;
+      annulerImage();
+      actualiserEtat();
+      programmerImage();
+    }
+
+    function animer(maintenant) {
+      numeroAnimation = null;
+      if (!pret || occupe || enPause || document.hidden) return;
+      const dureeBande = longueurOnde / (2 * CONFIG.CELERITE);
+      const ecart = dernierInstant === null ? 0 : Math.max((maintenant - dernierInstant) / 1000, 0);
+      temps += Math.min(ecart, dureeBande / CONFIG.IMAGES_PAR_BANDE);
+      dernierInstant = maintenant;
+      occupe = true;
+      const tampon = tamponLibre;
+      tamponLibre = null;
+      envoyer({ type: "image", generation, temps, tampon });
+    }
+
+    // Worker intégré au fichier : aucun téléchargement ni fichier JS séparé.
+    if (typeof Worker !== "undefined") {
+      let url;
+      try {
+        const code = `"use strict";
+          const creerModele = ${creerModele.toString()};
+          const modele = creerModele(${JSON.stringify(CONFIG)});
+          self.onmessage = ({data: m}) => {
+            try {
+              if (m.type === "configurer") modele.configurer(m.lambda, m.largeur);
+              const tampon = modele.rendre(m.temps || 0, m.tampon);
+              self.postMessage({type: m.type === "configurer" ? "pret" : "image",
+                generation: m.generation, tampon}, [tampon]);
+            } catch (e) {
+              self.postMessage({type: "erreur", generation: m.generation, message: e.message});
+            }
+          };`;
+        url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+        worker = new Worker(url);
+        worker.onmessage = event => recevoir(event.data);
+        worker.onerror = event => {
+          event.preventDefault();
+          worker.terminate();
+          worker = null;
+          reinitialiser();
+        };
+      } catch { worker = null; }
+      finally { if (url) URL.revokeObjectURL(url); }
+    }
+
+    lambda.addEventListener("input", modifierParametres);
+    ouverture.addEventListener("input", modifierParametres);
+    boutonPause.addEventListener("click", basculerPause);
+    document.getElementById("reset").addEventListener("click", reinitialiser);
+    document.addEventListener("keydown", event => {
+      if (event.repeat || event.ctrlKey || event.altKey || event.metaKey ||
+          event.target.closest("input, button, textarea, select, a, [contenteditable]")) return;
+      if (event.code === "Space") { event.preventDefault(); basculerPause(); }
+      else if (event.key.toLowerCase() === "r") { event.preventDefault(); reinitialiser(); }
+    });
+    document.addEventListener("visibilitychange", () => {
+      dernierInstant = null;
+      annulerImage();
+      programmerImage();
+    });
+    window.addEventListener("resize", redimensionner);
+    if (typeof ResizeObserver !== "undefined") new ResizeObserver(redimensionner).observe(canvas);
+    window.addEventListener("pagehide", event => {
+      annulerImage();
+      if (!event.persisted && worker) worker.terminate();
+    });
+    window.addEventListener("pageshow", () => { dernierInstant = null; programmerImage(); });
+
+    if (!ctx || !rasterCtx) { erreur("Le dessin Canvas n’est pas disponible."); return; }
+    redimensionner();
+    reinitialiser();
+  })();
+  </script>
+</body>
+</html>
 
