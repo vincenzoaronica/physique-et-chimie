@@ -36,7 +36,7 @@
 <body>
   <main>
     <h1>Interférences de deux ouvertures — vue de dessus</h1>
-    <canvas id="champ" width="1120" height="622" role="img" aria-label="Vue 2D des ondes émises par deux ouvertures cohérentes. Les zones lumineuses représentent le carré du champ instantané."></canvas>
+    <canvas id="champ" width="1120" height="622" role="img" aria-label="Vue 2D des ondes émises par deux ouvertures cohérentes. Le champ négatif est bleu glacier, le champ positif rouge corail et le champ nul bleu nuit."></canvas>
     <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
     <div class="controles">
       <div class="curseurs">
@@ -128,14 +128,14 @@
     const lambda = document.getElementById("lambda"), ecartement = document.getElementById("ecartement");
     const sources = [document.getElementById("source-basse"), document.getElementById("source-haute")];
     const format = v => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const palette = new Uint8ClampedArray(4096 * 3);
-    const arrets = [[0, [2,4,13]], [.18, [6,22,45]], [.43, [10,79,120]], [.72, [25,189,214]], [1, [234,255,255]]];
-    for (let i = 0; i < 4096; i++) {
-      const valeur = i / 4095;
-      let j = 0;
-      while (j < arrets.length - 2 && valeur > arrets[j + 1][0]) j++;
-      const t = (valeur - arrets[j][0]) / (arrets[j + 1][0] - arrets[j][0]);
-      for (let c = 0; c < 3; c++) palette[3 * i + c] = Math.round(arrets[j][1][c] * (1-t) + arrets[j+1][1][c] * t);
+    // Même palette que l’animation avec M : bleu glacier / nuit / corail.
+    const palette = new Uint8ClampedArray(4097 * 3);
+    const arrets = [[160,208,255],[91,158,245],[45,99,191],[14,32,65],
+      [2,4,13],[61,20,31],[177,57,74],[241,104,106],[255,179,163]];
+    for (let i = 0; i < 4097; i++) {
+      const position = i / 4096 * 8;
+      const j = Math.min(7, Math.floor(position)), f = position-j;
+      for (let c = 0; c < 3; c++) palette[3*i+c] = Math.floor(arrets[j][c]*(1-f)+arrets[j+1][c]*f);
     }
     let champs = null, phase = 0, enPause = matchMedia("(prefers-reduced-motion: reduce)").matches;
     let generation = 0, calculEnCours = false, worker = null, temporisation = null;
@@ -183,8 +183,9 @@
       const cos = Math.cos(phase), sin = Math.sin(phase), data = pixels.data;
       for (let i = 0; i < CONFIG.NX * CONFIG.NY; i++) {
         const champ = champs ? champs.re[i]*cos + champs.im[i]*sin : 0;
-        const niveau = 1 - Math.exp(-champ*champ);
-        const couleur = Math.min(4095, Math.floor(niveau*4095))*3;
+        // Conserver le gain diffus tout en distinguant les deux signes du champ.
+        const niveau = Math.sign(champ) * (1 - Math.exp(-champ*champ));
+        const couleur = Math.max(0, Math.min(4096, 2048 + Math.round(niveau*2048)))*3;
         const p = i*4;
         data[p] = palette[couleur]; data[p+1] = palette[couleur+1]; data[p+2] = palette[couleur+2]; data[p+3] = 255;
       }
