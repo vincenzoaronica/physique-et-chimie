@@ -11,7 +11,7 @@
     body { margin: 0; }
     main { width: min(1140px, 100%); margin: auto; padding: 24px 20px; }
     h1 { margin: 0 0 22px; text-align: center; font-size: clamp(1.3rem, 3.2vw, 1.8rem); font-weight: 550; }
-    .scene { position: relative; overflow: hidden; border: 1px solid #27445a; background: #000; }
+    .scene { position: relative; overflow: hidden; border: 1px solid #27445a; background: #02040d; }
     canvas { display: block; width: 100%; aspect-ratio: 2 / 1; }
     .legendes { position: absolute; inset: 14px 0 auto; display: grid; pointer-events: none; text-align: center; font-size: clamp(.75rem, 1.4vw, .9375rem); }
     .legendes span { justify-self: center; max-width: 100%; padding: 4px 6px; background: rgb(0 0 0 / .88); }
@@ -99,13 +99,15 @@
       const distancesMax = new Float64Array(taille);
       const amplitudes = new Float64Array(taille);
       const gain = new Float64Array(taille);
-      const palette = new Uint8ClampedArray(2048 * 3);
+      // Même palette que les animations précédentes : bleu glacier / nuit / corail.
+      const palette = new Uint8ClampedArray(4097 * 3);
       const pixelGauche = new Uint16Array(premiereColonne);
-      for (let i = 0; i < 2048; i++) {
-        const niveau = i / 2047;
-        palette[3 * i] = Math.round(255 * niveau ** 2.8);
-        palette[3 * i + 1] = Math.round(255 * niveau ** 1.8);
-        palette[3 * i + 2] = Math.round(255 * niveau);
+      const arrets = [[160,208,255],[91,158,245],[45,99,191],[14,32,65],
+        [2,4,13],[61,20,31],[177,57,74],[241,104,106],[255,179,163]];
+      for (let i = 0; i < 4097; i++) {
+        const position = i / 4096 * 8;
+        const j = Math.min(7, Math.floor(position)), f = position-j;
+        for (let c = 0; c < 3; c++) palette[3*i+c] = Math.floor(arrets[j][c]*(1-f)+arrets[j+1][c]*f);
       }
       const instantArrivee = (X_PAROI - X_MIN) / CELERITE;
       let k = 0, omega = 0, longueurRampe = 1, poids = 1, echelle = 1;
@@ -178,8 +180,8 @@
         for (let col = 0; col < premiereColonne; col++) {
           const age = temps - col * dx / CELERITE;
           const enveloppe = rampe(age * CELERITE / longueurRampe);
-          const luminosite = Math.abs(enveloppe * Math.cos(omega * age)) * 0.90;
-          pixelGauche[col] = Math.min(2047, Math.floor(luminosite * 2048));
+          const niveau = enveloppe * Math.cos(omega * age) * 0.90;
+          pixelGauche[col] = Math.max(0, Math.min(4096, 2048 + Math.round(niveau * 2048)));
         }
         for (let ligne = 0; ligne < NY; ligne++) {
           let pixel = ligne * NX * 4;
@@ -218,8 +220,8 @@
                 }
               }
             }
-            const luminosite = Math.abs(champ / echelle) * gain[index];
-            const couleur = 3 * Math.min(2047, Math.floor(luminosite * 2048));
+            const niveau = (champ / echelle) * gain[index];
+            const couleur = 3 * Math.max(0, Math.min(4096, 2048 + Math.round(niveau * 2048)));
             pixels[pixelHaut] = pixels[pixelBas] = palette[couleur];
             pixels[pixelHaut + 1] = pixels[pixelBas + 1] = palette[couleur + 1];
             pixels[pixelHaut + 2] = pixels[pixelBas + 2] = palette[couleur + 2];
@@ -461,4 +463,3 @@
   </script>
 </body>
 </html>
-
