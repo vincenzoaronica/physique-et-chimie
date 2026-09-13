@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="fr">
 
@@ -77,37 +76,34 @@
     }
 
 
-    /* DOCUMENTS */
+    /* GROUPES : COURS / CORRECTION / TP / ANIMATION */
+
+    .document-group {
+      margin-bottom: 22px;
+    }
+
+    .document-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .document-type {
+      display: block;
+      font-size: 0.72em;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+
+    /* DOCUMENTS DANS CHAQUE GROUPE */
 
     .document {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 20px;
-      padding: 13px 0;
-    }
-
-    /*
-      Document appartenant au même type que celui juste au-dessus.
-      Cela permet de rapprocher plusieurs animations entre elles
-      sans modifier l'espacement entre Cours / TP / Animation.
-    */
-
-    .document.same-type {
-      padding: 2px 0;
-    }
-
-    .document-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .document-type {
-      font-size: 0.72em;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      opacity: 0.5;
+      padding: 4px 0;
     }
 
     .document-title {
@@ -120,6 +116,7 @@
       font-size: 0.85em;
       opacity: 0.7;
       transition: opacity 0.2s ease;
+      flex-shrink: 0;
     }
 
     .open-button:hover {
@@ -169,9 +166,25 @@
 
     @media (max-width: 600px) {
 
+      .container {
+        width: 90%;
+        padding: 40px 10px;
+      }
+
+      .theme-content {
+        padding-left: 15px;
+      }
+
       .document {
-        flex-direction: column;
-        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .document-title {
+        font-size: 0.9em;
+      }
+
+      .open-button {
+        font-size: 0.8em;
       }
 
     }
@@ -196,15 +209,19 @@
 
 
   <div class="terminale-image">
+
     <img
       src="../images/image-terminale-2.png"
       alt="Illustration Terminale Physique Chimie"
     >
+
   </div>
 
 
 
+  <!-- ================================================== -->
   <!-- ACIDES ET BASES -->
+  <!-- ================================================== -->
 
   <details>
 
@@ -217,81 +234,84 @@
 
       <!-- COURS -->
 
-      <div class="document">
+      <div class="document-group">
 
-        <div class="document-info">
+        <span class="document-type">
+          Cours
+        </span>
 
-          <span class="document-type">
-            Cours
-          </span>
+        <div class="document">
 
           <span class="document-title">
             Acides et bases
           </span>
 
-        </div>
+          <a
+            href="cours/TSPE_Cours_01_Acide_Base.pdf"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
 
-        <a
-          href="cours/TSPE_Cours_01_Acide_Base.pdf"
-          target="_blank"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
+        </div>
 
       </div>
 
 
       <!-- CORRECTION -->
 
-      <div class="document">
+      <div class="document-group">
 
-        <div class="document-info">
+        <span class="document-type">
+          Correction
+        </span>
 
-          <span class="document-type">
-            Correction
-          </span>
+        <div class="document">
 
           <span class="document-title">
             Applications et exercices
           </span>
 
-        </div>
+          <a
+            href="cours/TSPE_Cours_01_correction.pdf"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
 
-        <a
-          href="cours/TSPE_Cours_01_correction.pdf"
-          target="_blank"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
+        </div>
 
       </div>
 
 
       <!-- TP -->
 
-      <div class="document">
+      <div class="document-group">
 
-        <div class="document-info">
+        <span class="document-type">
+          TP
+        </span>
 
-          <span class="document-type">
-            TP
-          </span>
+        <div class="document">
 
           <span class="document-title">
             TP 1 - Mesures de pH
           </span>
 
-        </div>
+          <a
+            href="tp/TSPE_TP_01_Mesure_de_pH.pdf"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
 
-        <a
-          href="tp/TSPE_TP_01_Mesure_de_pH.pdf"
-          target="_blank"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
+        </div>
 
       </div>
 
@@ -302,7 +322,9 @@
 
 
 
+  <!-- ================================================== -->
   <!-- METHODES PHYSIQUES D'ANALYSE -->
+  <!-- ================================================== -->
 
   <details>
 
@@ -312,29 +334,34 @@
 
     <div class="theme-content">
 
-      <div class="document">
 
-        <div class="document-info">
+      <!-- COURS -->
 
-          <span class="document-type">
-            Cours
-          </span>
+      <div class="document-group">
+
+        <span class="document-type">
+          Cours
+        </span>
+
+        <div class="document">
 
           <span class="document-title">
             Méthodes physiques d'analyse
           </span>
 
+          <a
+            href="cours/TSPE_Cours_02_Methode_physique_analyse.pdf"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
+
         </div>
 
-        <a
-          href="cours/TSPE_Cours_02_Methode_physique_analyse.pdf"
-          target="_blank"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
-
       </div>
+
 
     </div>
 
@@ -342,7 +369,9 @@
 
 
 
+  <!-- ================================================== -->
   <!-- EFFET DOPPLER -->
+  <!-- ================================================== -->
 
   <details>
 
@@ -352,30 +381,34 @@
 
     <div class="theme-content">
 
-      <div class="document">
 
-        <div class="document-info">
+      <!-- ANIMATION -->
 
-          <span class="document-type">
-            Animation
-          </span>
+      <div class="document-group">
+
+        <span class="document-type">
+          Animation
+        </span>
+
+        <div class="document">
 
           <span class="document-title">
             Effet Doppler
           </span>
 
+          <a
+            href="animation/effet_doppler.html"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
+
         </div>
 
-        <a
-          href="animation/effet_doppler.html"
-          target="_blank"
-          rel="noopener"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
-
       </div>
+
 
     </div>
 
@@ -383,7 +416,9 @@
 
 
 
+  <!-- ================================================== -->
   <!-- DIFFRACTION ET INTERFERENCE -->
+  <!-- ================================================== -->
 
   <details>
 
@@ -394,78 +429,74 @@
     <div class="theme-content">
 
 
-      <!-- ANIMATION : DIFFRACTION -->
+      <!-- ANIMATION -->
 
-      <div class="document">
+      <div class="document-group">
 
-        <div class="document-info">
+        <span class="document-type">
+          Animation
+        </span>
 
-          <span class="document-type">
-            Animation
-          </span>
+
+        <!-- DIFFRACTION -->
+
+        <div class="document">
 
           <span class="document-title">
             Diffraction
           </span>
 
+          <a
+            href="animation/diffraction.html"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
+
         </div>
 
-        <a
-          href="animation/diffraction.html"
-          target="_blank"
-          rel="noopener"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
 
-      </div>
+        <!-- INTERFERENCE 2D -->
 
-
-      <!-- ANIMATION : INTERFERENCE 2D -->
-
-      <div class="document same-type">
-
-        <div class="document-info">
+        <div class="document">
 
           <span class="document-title">
             Interférence 2D
           </span>
 
+          <a
+            href="animation/interference_2D.html"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
+
         </div>
 
-        <a
-          href="animation/interference_2D.html"
-          target="_blank"
-          rel="noopener"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
 
-      </div>
+        <!-- INTERFERENCE CONDITION -->
 
-
-      <!-- ANIMATION : INTERFERENCE CONDITION -->
-
-      <div class="document same-type">
-
-        <div class="document-info">
+        <div class="document">
 
           <span class="document-title">
             Interférence Condition
           </span>
 
+          <a
+            href="animation/interference_constructive.html"
+            target="_blank"
+            rel="noopener"
+            class="open-button"
+          >
+            Ouvrir →
+          </a>
+
         </div>
 
-        <a
-          href="animation/interference_constructive.html"
-          target="_blank"
-          rel="noopener"
-          class="open-button"
-        >
-          Ouvrir →
-        </a>
 
       </div>
 
@@ -476,7 +507,9 @@
 
 
 
+  <!-- ================================================== -->
   <!-- NAVIGATION -->
+  <!-- ================================================== -->
 
   <div class="navigation">
 
@@ -496,4 +529,3 @@
 </body>
 
 </html>
-```
