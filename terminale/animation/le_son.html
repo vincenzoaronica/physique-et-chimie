@@ -1,1 +1,208 @@
 
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Propagation d’une onde longitudinale</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #d9f7ff; background: #02040d; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(1140px, 100%); margin: auto; padding: 24px 20px; }
+    h1 { margin: 0 0 24px; text-align: center; font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 550; }
+    h2 { margin: 0 0 10px; font-size: clamp(.95rem, 2vw, 1.1rem); font-weight: 500; text-align: center; }
+    section + section { margin-top: 24px; }
+    canvas { display: block; width: 100%; height: clamp(230px, 27vw, 300px); }
+    .controles { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px 44px; margin: 26px 0 0; }
+    label { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+    output { font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 32px; margin: 6px 0 0; accent-color: #48e9ff; cursor: pointer; }
+    .actions { display: flex; gap: 12px; }
+    button { min-height: 46px; min-width: 144px; padding: 10px 20px; color: #d9f7ff; background: #10283a; border: 1px solid #27445a; border-radius: 5px; font: inherit; cursor: pointer; }
+    button:hover { background: #1b4056; }
+    :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
+    #erreur:empty { display: none; }
+    @media (max-width: 650px) {
+      main { padding: 18px 10px; }
+      .controles { grid-template-columns: 1fr; gap: 18px; }
+      .actions button { flex: 1; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Propagation d’une onde longitudinale</h1>
+    <section aria-label="Propagation dans le milieu">
+      <canvas id="milieu" width="1100" height="300" role="img" aria-label="Sept lignes de particules bleues. Le front d’onde se propage vers la droite et les particules oscillent horizontalement après son passage. Une particule rouge corail est suivie."></canvas>
+    </section>
+    <section aria-labelledby="titre-oscillation">
+      <h2 id="titre-oscillation">Oscillation de la particule située initialement à x = 3,0 m</h2>
+      <canvas id="oscillation" width="1100" height="300" role="img" aria-label="Déplacement de la particule suivie en fonction du temps, sur une fenêtre de cinq secondes."></canvas>
+    </section>
+    <div class="controles">
+      <div>
+        <label for="frequence">Fréquence <output id="val-frequence" for="frequence">1,0 Hz</output></label>
+        <input id="frequence" type="range" min="0.2" max="3.0" step="0.1" value="1.0">
+      </div>
+      <div class="actions">
+        <button id="pause" type="button" title="Pause ou reprise : barre espace">Pause</button>
+        <button id="reset" type="button">Recommencer</button>
+      </div>
+    </div>
+    <p id="erreur" role="status"></p>
+    <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+    const CONFIG = {
+      LONGUEUR: 6, NX: 90, NY: 7, AMPLITUDE: .12,
+      CELERITE: 1.5, FREQUENCE: 1, DT: .02, FENETRE: 5, X_SUIVI: 3,
+      FOND: "#02040d", PLOT: "#07101f", BORD: "#27445a",
+      TEXTE: "#d9f7ff", SECONDAIRE: "#7fa6b8",
+      PARTICULES: "#9bd0ff", SUIVI: "#f1686a", FRONT: "#eaffff"
+    };
+    const milieu = document.getElementById("milieu"), oscillation = document.getElementById("oscillation");
+    const cm = milieu.getContext("2d"), co = oscillation.getContext("2d");
+    if (!cm || !co) { document.getElementById("erreur").textContent = "Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
+    const curseur = document.getElementById("frequence"), boutonPause = document.getElementById("pause");
+    const x0 = Array.from({length: CONFIG.NX}, (_,i) => CONFIG.LONGUEUR*i/(CONFIG.NX-1));
+    const y0 = Array.from({length: CONFIG.NY}, (_,i) => -.5+i/(CONFIG.NY-1));
+    // Placer exactement à 3 m la particule suivie, dans la ligne centrale.
+    const indexSuivi = Math.round(CONFIG.X_SUIVI/CONFIG.LONGUEUR*(CONFIG.NX-1));
+    x0[indexSuivi] = CONFIG.X_SUIVI;
+    const ligneSuivie = Math.floor(CONFIG.NY/2);
+    let frequence = CONFIG.FREQUENCE, pasTemps = 0, temps = 0, reste = 0;
+    let enPause = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let animation = null, dernierInstant = null, gm = null, go = null;
+    let historique = [{t:0, u:0}];
+    const format = (v,n=1) => v.toLocaleString("fr-FR", {minimumFractionDigits:n,maximumFractionDigits:n});
+
+    function deplacement(x,t) {
+      const age = t-x/CONFIG.CELERITE;
+      return age < 0 ? 0 : CONFIG.AMPLITUDE*Math.sin(2*Math.PI*frequence*age);
+    }
+    function geometrie(canvas) {
+      const boite = canvas.getBoundingClientRect();
+      const w = Math.max(1,boite.width), h = Math.max(1,boite.height), dpr = Math.min(devicePixelRatio || 1,2);
+      canvas.width = Math.round(w*dpr); canvas.height = Math.round(h*dpr);
+      const left = w<480 ? 57 : 70, right = 18, top = 32, bottom = 44;
+      return {w,h,dpr,left,top,pw:Math.max(1,w-left-right),ph:Math.max(1,h-top-bottom)};
+    }
+    function fond(ctx,g) {
+      ctx.setTransform(g.dpr,0,0,g.dpr,0,0);
+      ctx.fillStyle=CONFIG.FOND; ctx.fillRect(0,0,g.w,g.h);
+      ctx.fillStyle=CONFIG.PLOT; ctx.fillRect(g.left,g.top,g.pw,g.ph);
+      ctx.strokeStyle=CONFIG.BORD; ctx.lineWidth=1; ctx.strokeRect(g.left,g.top,g.pw,g.ph);
+    }
+    function etiquettes(ctx,g,texteX,texteY) {
+      ctx.fillStyle=CONFIG.TEXTE; ctx.font="12px system-ui"; ctx.textAlign="center";
+      ctx.fillText(texteX,g.left+g.pw/2,g.top+g.ph+35);
+      ctx.save(); ctx.translate(13,g.top+g.ph/2); ctx.rotate(-Math.PI/2); ctx.fillText(texteY,0,0); ctx.restore();
+    }
+    function dessinerMilieu() {
+      if (!gm) return;
+      const g=gm, x=v=>g.left+(v+.3)/(CONFIG.LONGUEUR+.6)*g.pw, y=v=>g.top+(.8-v)/1.6*g.ph;
+      fond(cm,g);
+      cm.font="11px system-ui"; cm.fillStyle=CONFIG.SECONDAIRE; cm.textAlign="center";
+      for(let v=0;v<=CONFIG.LONGUEUR;v++) cm.fillText(String(v),x(v),g.top+g.ph+17);
+      etiquettes(cm,g,"Position (m)","Lignes de particules");
+      cm.save(); cm.beginPath(); cm.rect(g.left,g.top,g.pw,g.ph); cm.clip();
+      const rayon = Math.max(1.35,Math.min(3.2,g.pw/240));
+      const positions = x0.map(xRepos=>x(xRepos+deplacement(xRepos,temps)));
+      cm.fillStyle=CONFIG.PARTICULES;
+      cm.beginPath();
+      for(let row=0;row<CONFIG.NY;row++) for(let col=0;col<CONFIG.NX;col++) {
+        if(row===ligneSuivie && col===indexSuivi) continue;
+        const px=positions[col], py=y(y0[row]);
+        cm.moveTo(px+rayon,py); cm.arc(px,py,rayon,0,2*Math.PI);
+      }
+      cm.fill();
+      const front=CONFIG.CELERITE*temps;
+      if(front<=CONFIG.LONGUEUR) {
+        cm.strokeStyle=CONFIG.FRONT; cm.lineWidth=1.5; cm.setLineDash([7,5]);
+        cm.beginPath(); cm.moveTo(x(front),g.top); cm.lineTo(x(front),g.top+g.ph); cm.stroke(); cm.setLineDash([]);
+      }
+      cm.fillStyle=CONFIG.SUIVI; cm.strokeStyle=CONFIG.FOND; cm.lineWidth=2;
+      cm.beginPath(); cm.arc(positions[indexSuivi],y(y0[ligneSuivie]),7.5,0,2*Math.PI); cm.fill(); cm.stroke();
+      cm.restore();
+      cm.font="13px system-ui"; cm.fillStyle=CONFIG.TEXTE; cm.textAlign="left";
+      const texte = temps===0 ? "Milieu au repos" : front<=CONFIG.LONGUEUR ? `Front de l’onde : ${format(front,2)} m →` : "L’onde a atteint tout le milieu";
+      cm.fillText(texte,g.left,20);
+    }
+    function dessinerOscillation() {
+      if (!go) return;
+      const g=go, debut=Math.max(0,temps-CONFIG.FENETRE), fin=debut+CONFIG.FENETRE;
+      const limite=CONFIG.AMPLITUDE*1.4;
+      const x=t=>g.left+(t-debut)/CONFIG.FENETRE*g.pw, y=u=>g.top+(limite-u)/(2*limite)*g.ph;
+      fond(co,g);
+      co.font="11px system-ui"; co.textAlign="center";
+      // Une seconde entre les graduations ; toute la zone est quadrillée.
+      const intervalle = g.pw<360 ? 2 : 1;
+      for(let t=Math.ceil(debut/intervalle)*intervalle;t<=fin+1e-9;t+=intervalle) {
+        co.strokeStyle="#18354a"; co.lineWidth=.7; co.beginPath(); co.moveTo(x(t),g.top); co.lineTo(x(t),g.top+g.ph); co.stroke();
+        co.fillStyle=CONFIG.SECONDAIRE; co.fillText(String(t),x(t),g.top+g.ph+17);
+      }
+      co.textAlign="right";
+      for(const u of [-.15,-.1,-.05,0,.05,.1,.15]) {
+        co.strokeStyle=u===0?"#426077":"#18354a"; co.lineWidth=u===0?1:.7;
+        co.beginPath(); co.moveTo(g.left,y(u)); co.lineTo(g.left+g.pw,y(u)); co.stroke();
+        co.fillStyle=CONFIG.SECONDAIRE; co.fillText(format(u,2),g.left-8,y(u)+4);
+      }
+      etiquettes(co,g,"Temps (s)","Déplacement (m)");
+      co.save(); co.beginPath(); co.rect(g.left,g.top,g.pw,g.ph); co.clip();
+      co.strokeStyle=CONFIG.SUIVI; co.lineWidth=2.5; co.lineJoin="round"; co.beginPath();
+      historique.forEach((p,i)=>{if(i===0) co.moveTo(x(p.t),y(p.u)); else co.lineTo(x(p.t),y(p.u));});
+      co.stroke(); co.restore();
+      const actuel=historique[historique.length-1];
+      co.fillStyle=CONFIG.SUIVI; co.strokeStyle=CONFIG.FOND; co.lineWidth=1.5;
+      co.beginPath(); co.arc(x(actuel.t),y(actuel.u),6,0,2*Math.PI); co.fill(); co.stroke();
+    }
+    function dessiner() { dessinerMilieu(); dessinerOscillation(); }
+    function arreter() { if(animation!==null) cancelAnimationFrame(animation); animation=null; dernierInstant=null; }
+    function programmer() { if(!enPause&&!document.hidden&&animation===null) animation=requestAnimationFrame(animer); }
+    function animer(instant) {
+      animation=null;
+      if(enPause||document.hidden) return;
+      if(dernierInstant!==null) reste+=Math.min(Math.max(0,(instant-dernierInstant)/1000),.08);
+      dernierInstant=instant;
+      // Échantillonnage à 50 Hz, indépendant de la fréquence de l’écran.
+      while(reste>=CONFIG.DT) {
+        reste-=CONFIG.DT; pasTemps++; temps=pasTemps*CONFIG.DT;
+        historique.push({t:temps,u:deplacement(CONFIG.X_SUIVI,temps)});
+      }
+      while(historique.length>1&&historique[1].t<temps-CONFIG.FENETRE) historique.shift();
+      dessiner(); programmer();
+    }
+    function basculerPause() { enPause=!enPause; boutonPause.textContent=enPause?"Reprendre":"Pause"; arreter(); programmer(); }
+    function recommencer() {
+      arreter(); temps=0; pasTemps=0; reste=0; historique=[{t:0,u:0}]; dessiner(); programmer();
+    }
+    curseur.addEventListener("input",()=>{
+      frequence=Number(curseur.value);
+      const etiquette=format(frequence)+" Hz";
+      document.getElementById("val-frequence").textContent=etiquette; curseur.setAttribute("aria-valuetext",etiquette);
+      // Comme dans le Python, la fréquence s’applique à l’onde courante.
+      historique[historique.length-1]={t:temps,u:deplacement(CONFIG.X_SUIVI,temps)};
+      dessiner();
+    });
+    boutonPause.addEventListener("click",basculerPause);
+    document.getElementById("reset").addEventListener("click",recommencer);
+    document.addEventListener("keydown",e=>{
+      if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||(e.target instanceof Element&&e.target.closest("input,button,textarea,select,a,[contenteditable]"))) return;
+      if(e.code==="Space") {e.preventDefault();basculerPause();}
+      else if(e.key.toLowerCase()==="r") {e.preventDefault();recommencer();}
+    });
+    function redimensionner() { gm=geometrie(milieu); go=geometrie(oscillation); dessiner(); }
+    window.addEventListener("resize",redimensionner);
+    if(typeof ResizeObserver!=="undefined") { const observateur=new ResizeObserver(redimensionner); observateur.observe(milieu); observateur.observe(oscillation); }
+    document.addEventListener("visibilitychange",()=>{arreter();programmer();});
+    window.addEventListener("pagehide",arreter);
+    window.addEventListener("pageshow",()=>{dernierInstant=null;programmer();});
+    boutonPause.textContent=enPause?"Reprendre":"Pause";
+    redimensionner(); programmer();
+  })();
+  </script>
+</body>
+</html>
