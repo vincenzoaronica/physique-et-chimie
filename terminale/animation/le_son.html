@@ -58,7 +58,7 @@
     "use strict";
     const CONFIG = {
       LONGUEUR: 6, NX: 90, NY: 7, AMPLITUDE: .12,
-      CELERITE: 1.5, FREQUENCE: 1, DT: .02, FENETRE: 5, X_SUIVI: 3,
+      CELERITE: 1, FREQUENCE: 1, DT: .02, FENETRE: 5, X_SUIVI: 3,
       FOND: "#02040d", PLOT: "#07101f", BORD: "#27445a",
       TEXTE: "#d9f7ff", SECONDAIRE: "#7fa6b8",
       PARTICULES: "#9bd0ff", SUIVI: "#f1686a", FRONT: "#eaffff"
@@ -125,7 +125,7 @@
         cm.beginPath(); cm.moveTo(x(front),g.top); cm.lineTo(x(front),g.top+g.ph); cm.stroke(); cm.setLineDash([]);
       }
       cm.fillStyle=CONFIG.SUIVI; cm.strokeStyle=CONFIG.FOND; cm.lineWidth=2;
-      cm.beginPath(); cm.arc(positions[indexSuivi],y(y0[ligneSuivie]),7.5,0,2*Math.PI); cm.fill(); cm.stroke();
+      cm.beginPath(); cm.arc(positions[indexSuivi],y(y0[ligneSuivie]),rayon,0,2*Math.PI); cm.fill(); cm.stroke();
       cm.restore();
       cm.font="13px system-ui"; cm.fillStyle=CONFIG.TEXTE; cm.textAlign="left";
       const texte = temps===0 ? "Milieu au repos" : front<=CONFIG.LONGUEUR ? `Front de l’onde : ${format(front,2)} m →` : "L’onde a atteint tout le milieu";
