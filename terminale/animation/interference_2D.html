@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interférences de deux ouvertures</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #d9f7ff; background: #02040d; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1160px; margin: auto; padding: 24px 20px; }
+    h1 { margin: 0 0 20px; text-align: center; font-size: clamp(1.25rem, 3vw, 1.8rem); font-weight: 550; }
+    canvas { display: block; width: 100%; aspect-ratio: 1.8; }
+    .controles { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 24px 32px; margin-top: 22px; }
+    .curseurs { display: grid; gap: 14px; }
+    .etiquette { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+    output { font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 30px; margin: 4px 0 0; accent-color: #48e9ff; cursor: pointer; }
+    #ecran { accent-color: #ff4fd8; }
+    fieldset { margin: 0; padding: 14px 18px; border: 1px solid #27445a; border-radius: 6px; }
+    legend { padding: 0 6px; }
+    fieldset label { display: flex; align-items: center; gap: 10px; min-height: 38px; cursor: pointer; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: #48e9ff; }
+    button { min-height: 46px; min-width: 132px; padding: 10px 20px; background: #10283a; color: #d9f7ff; border: 1px solid #27445a; border-radius: 5px; font: inherit; cursor: pointer; }
+    button:hover { background: #1b4056; }
+    :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
+    #etat { margin: 12px 0 0; color: #7fa6b8; font-size: .875rem; }
+    #etat:empty { display: none; }
+    @media (max-width: 740px) {
+      main { padding: 18px 10px; }
+      .controles { grid-template-columns: 1fr auto; gap: 20px; }
+      .curseurs { grid-column: 1 / -1; }
+      fieldset { padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Interférences de deux ouvertures — vue de dessus</h1>
+    <canvas id="champ" width="1120" height="622" role="img" aria-label="Vue 2D des ondes émises par deux ouvertures cohérentes. Les zones lumineuses représentent le carré du champ instantané."></canvas>
+    <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
+    <div class="controles">
+      <div class="curseurs">
+        <div>
+          <label class="etiquette" for="lambda">Longueur d’onde λ <output id="val-lambda" for="lambda">0,85</output></label>
+          <input id="lambda" type="range" min="0.45" max="1.40" step="0.01" value="0.85">
+        </div>
+        <div>
+          <label class="etiquette" for="ecartement">Écartement d <output id="val-ecartement" for="ecartement">2,80</output></label>
+          <input id="ecartement" type="range" min="1.00" max="3.60" step="0.02" value="2.80">
+        </div>
+        <div>
+          <label class="etiquette" for="ecran">Position écran x <output id="val-ecran" for="ecran">8,50</output></label>
+          <input id="ecran" type="range" min="3.00" max="11.50" step="0.05" value="8.50">
+        </div>
+      </div>
+      <fieldset>
+        <legend>Sources actives</legend>
+        <label><input id="source-basse" type="checkbox" checked> Source basse</label>
+        <label><input id="source-haute" type="checkbox" checked> Source haute</label>
+      </fieldset>
+      <button id="pause" type="button" title="Pause ou reprise : barre espace">Pause</button>
+    </div>
+    <p id="etat" role="status"></p>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+    // Paramètres et couleurs du code Python fourni.
+    const CONFIG = {
+      X_MIN: -0.65, X_MAX: 12.5, Y_MIN: -3.5, Y_MAX: 3.5,
+      NX: 640, NY: 340, HAUTEUR_OUVERTURE: 0.42, NB_SOURCES: 7,
+      PAROI: "#a9b4c2", CYAN: "#48e9ff", MAGENTA: "#ff4fd8",
+      // Le Python avançait de 2π/70 toutes les 33 ms.
+      VITESSE_PHASE: 2 * Math.PI / (70 * 0.033)
+    };
+
+    // Préparer les champs complexes des sources. Le percentile ne sert qu’au
+    // gain des couleurs de la vue 2D : aucune courbe d’intensité n’est créée.
+    // La fonction est autonome pour être exécutée dans un Worker intégré.
+    async function calculerChamp(config, reglages, annule) {
+      const { NX, NY, X_MIN, X_MAX, Y_MIN, Y_MAX, NB_SOURCES, HAUTEUR_OUVERTURE } = config;
+      const re = new Float32Array(NX * NY), im = new Float32Array(NX * NY);
+      const echantillons = new Float64Array(NX * NY);
+      let compte = 0;
+      const k = 2 * Math.PI / reglages.lambda;
+      const positions = [];
+      for (let s = 0; s < 2; s++) {
+        if (!reglages.sources[s]) continue;
+        const centre = (s === 0 ? -1 : 1) * reglages.ecartement / 2;
+        for (let j = 0; j < NB_SOURCES; j++) {
+          positions.push(centre - HAUTEUR_OUVERTURE / 2 + HAUTEUR_OUVERTURE * j / (NB_SOURCES - 1));
+        }
+      }
+      for (let ligne = 0; ligne < NY; ligne++) {
+        // Les pixels du Canvas sont rangés du haut vers le bas.
+        const y = Y_MAX - ligne * (Y_MAX - Y_MIN) / (NY - 1);
+        for (let col = 0; col < NX; col++) {
+          const x = X_MIN + col * (X_MAX - X_MIN) / (NX - 1);
+          if (x < 0) continue;
+          let a = 0, b = 0;
+          for (const ys of positions) {
+            const r = Math.max(Math.hypot(x, y - ys), 0.18);
+            const attenuation = 1 / (NB_SOURCES * Math.sqrt(r));
+            a += Math.cos(k * r) * attenuation;
+            b += Math.sin(k * r) * attenuation;
+          }
+          const index = ligne * NX + col;
+          re[index] = a; im[index] = b;
+          if (x > 0.45 && x < X_MAX - 0.1) echantillons[compte++] = 0.5 * (a * a + b * b);
+        }
+        if (ligne % 16 === 15) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+          if (annule()) return null;
+        }
+      }
+      const valeurs = echantillons.subarray(0, compte);
+      valeurs.sort();
+      const rang = 0.91 * (compte - 1), bas = Math.floor(rang), f = rang - bas;
+      const echelle = Math.max(valeurs[bas] * (1 - f) + valeurs[Math.min(bas + 1, compte - 1)] * f, 1e-8);
+      const normalisation = Math.sqrt(echelle);
+      for (let i = 0; i < re.length; i++) { re[i] /= normalisation; im[i] /= normalisation; }
+      return { re, im };
+    }
+
+    const canvas = document.getElementById("champ"), ctx = canvas.getContext("2d");
+    const raster = document.createElement("canvas");
+    raster.width = CONFIG.NX; raster.height = CONFIG.NY;
+    const rctx = raster.getContext("2d");
+    const etat = document.getElementById("etat"), pause = document.getElementById("pause");
+    if (!ctx || !rctx) { etat.textContent = "Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
+    const pixels = rctx.createImageData(CONFIG.NX, CONFIG.NY);
+    const lambda = document.getElementById("lambda"), ecartement = document.getElementById("ecartement");
+    const ecran = document.getElementById("ecran");
+    const sources = [document.getElementById("source-basse"), document.getElementById("source-haute")];
+    const format = v => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const palette = new Uint8ClampedArray(4096 * 3);
+    const arrets = [[0, [2,4,13]], [.18, [6,22,45]], [.43, [10,79,120]], [.72, [25,189,214]], [1, [234,255,255]]];
+    for (let i = 0; i < 4096; i++) {
+      const valeur = i / 4095;
+      let j = 0;
+      while (j < arrets.length - 2 && valeur > arrets[j + 1][0]) j++;
+      const t = (valeur - arrets[j][0]) / (arrets[j + 1][0] - arrets[j][0]);
+      for (let c = 0; c < 3; c++) palette[3 * i + c] = Math.round(arrets[j][1][c] * (1-t) + arrets[j+1][1][c] * t);
+    }
+    let champs = null, phase = 0, enPause = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let generation = 0, calculEnCours = false, worker = null, temporisation = null;
+    let dernierInstant = null, animation = null, largeur = 1, hauteur = 1, dpr = 1;
+
+    function dessiner() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#02040d"; ctx.fillRect(0, 0, largeur, hauteur);
+      const gauche = largeur < 500 ? 35 : 48, haut = 12;
+      const w = Math.max(1, largeur - gauche - 12);
+      const h = Math.max(1, Math.min(hauteur - 43, w * 7 / 13.15));
+      const pw = h * 13.15 / 7;
+      const x = v => gauche + (v - CONFIG.X_MIN) / 13.15 * pw;
+      const y = v => haut + (CONFIG.Y_MAX - v) / 7 * h;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(raster, gauche, haut, pw, h);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(gauche, haut, pw, h); ctx.clip();
+      const d = Number(ecartement.value), demi = CONFIG.HAUTEUR_OUVERTURE / 2;
+      ctx.strokeStyle = CONFIG.PAROI; ctx.lineWidth = Math.max(3, pw * .005);
+      ctx.beginPath();
+      for (const [a,b] of [[-3.5,-d/2-demi],[-d/2+demi,d/2-demi],[d/2+demi,3.5]]) {
+        ctx.moveTo(x(0), y(a)); ctx.lineTo(x(0), y(b));
+      }
+      ctx.stroke();
+      for (let s = 0; s < 2; s++) {
+        const centre = (s === 0 ? -1 : 1) * d / 2;
+        ctx.fillStyle = sources[s].checked ? CONFIG.CYAN : "#101a26";
+        ctx.strokeStyle = sources[s].checked ? "#dfffff" : "#445360"; ctx.lineWidth = 1;
+        const rx = x(-.1), ry = y(centre + demi), rw = x(.1) - rx, rh = CONFIG.HAUTEUR_OUVERTURE * h / 7;
+        ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh);
+      }
+      ctx.strokeStyle = CONFIG.MAGENTA; ctx.lineWidth = 1.6; ctx.setLineDash([7,5]);
+      ctx.beginPath(); ctx.moveTo(x(Number(ecran.value)), haut); ctx.lineTo(x(Number(ecran.value)), haut+h); ctx.stroke();
+      ctx.setLineDash([]); ctx.font = "12px system-ui"; ctx.textAlign = "left";
+      ctx.fillStyle = CONFIG.MAGENTA; ctx.fillText("écran", x(Number(ecran.value))+5, haut+18);
+      ctx.restore();
+      ctx.strokeStyle = "#27445a"; ctx.lineWidth = 1; ctx.strokeRect(gauche, haut, pw, h);
+      ctx.fillStyle = "#7fa6b8"; ctx.font = "11px system-ui"; ctx.textAlign = "center";
+      for (let v = 0; v <= 12; v += 2) ctx.fillText(String(v), x(v), haut+h+15);
+      ctx.textAlign = "right";
+      for (let v = -3; v <= 3; v++) ctx.fillText(String(v), gauche-7, y(v)+4);
+      ctx.fillStyle = "#d9f7ff"; ctx.textAlign = "center";
+      ctx.fillText("Distance x", gauche+pw/2, haut+h+31);
+      ctx.save(); ctx.translate(11, haut+h/2); ctx.rotate(-Math.PI/2); ctx.fillText("Position y", 0, 0); ctx.restore();
+    }
+    function rendre() {
+      const cos = Math.cos(phase), sin = Math.sin(phase), data = pixels.data;
+      for (let i = 0; i < CONFIG.NX * CONFIG.NY; i++) {
+        const champ = champs ? champs.re[i]*cos + champs.im[i]*sin : 0;
+        const niveau = 1 - Math.exp(-champ*champ);
+        const couleur = Math.min(4095, Math.floor(niveau*4095))*3;
+        const p = i*4;
+        data[p] = palette[couleur]; data[p+1] = palette[couleur+1]; data[p+2] = palette[couleur+2]; data[p+3] = 255;
+      }
+      rctx.putImageData(pixels, 0, 0); dessiner();
+    }
+    function arreterAnimation() {
+      if (animation !== null) cancelAnimationFrame(animation);
+      animation = null; dernierInstant = null;
+    }
+    function programmer() {
+      if (!enPause && !document.hidden && !calculEnCours && champs && animation === null) animation = requestAnimationFrame(animer);
+    }
+    function animer(instant) {
+      animation = null;
+      if (enPause || document.hidden || calculEnCours) return;
+      if (dernierInstant !== null) phase = (phase + Math.min((instant-dernierInstant)/1000, .05)*CONFIG.VITESSE_PHASE) % (2*Math.PI);
+      dernierInstant = instant; rendre(); programmer();
+    }
+    function recevoir(message) {
+      if (message.generation !== generation) return;
+      calculEnCours = false;
+      if (message.erreur) { etat.textContent = "Le calcul a échoué : " + message.erreur; return; }
+      champs = { re: message.re, im: message.im };
+      etat.textContent = ""; dernierInstant = null; rendre(); programmer();
+    }
+    async function calculLocal(message) {
+      try {
+        const resultat = await calculerChamp(CONFIG, message.reglages, () => message.generation !== generation);
+        if (resultat) recevoir({ generation: message.generation, ...resultat });
+      } catch (e) { recevoir({ generation: message.generation, erreur: e.message }); }
+    }
+    function recalculer() {
+      clearTimeout(temporisation); generation++; calculEnCours = true; arreterAnimation();
+      const message = { generation, reglages: { lambda: Number(lambda.value), ecartement: Number(ecartement.value), sources: sources.map(s => s.checked) } };
+      etat.textContent = "Calcul de l’onde…";
+      // Éviter d’afficher les anciennes ondes avec une nouvelle géométrie.
+      champs = null; rendre();
+      temporisation = setTimeout(() => {
+        if (worker) worker.postMessage(message); else calculLocal(message);
+      }, 80);
+    }
+    if (typeof Worker !== "undefined") {
+      let url;
+      try {
+        const code = `"use strict"; const calculerChamp = ${calculerChamp.toString()};
+          const config = ${JSON.stringify(CONFIG)}; let derniere = 0;
+          self.onmessage = async ({data: m}) => {
+            derniere = m.generation;
+            try {
+              const r = await calculerChamp(config, m.reglages, () => derniere !== m.generation);
+              if (r && derniere === m.generation) self.postMessage({generation:m.generation,...r}, [r.re.buffer,r.im.buffer]);
+            } catch(e) { self.postMessage({generation:m.generation,erreur:e.message}); }
+          };`;
+        url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+        worker = new Worker(url); worker.onmessage = e => recevoir(e.data);
+        worker.onerror = e => { e.preventDefault(); if (worker) worker.terminate(); worker = null; recalculer(); };
+      } catch { worker = null; }
+      finally { if (url) URL.revokeObjectURL(url); }
+    }
+    for (const input of [lambda, ecartement, ecran]) {
+      input.addEventListener("input", () => {
+        const valeur = format(input.value);
+        document.getElementById("val-"+input.id).textContent = valeur;
+        input.setAttribute("aria-valuetext", valeur);
+        if (input === ecran) dessiner(); else recalculer();
+      });
+    }
+    sources.forEach(source => source.addEventListener("change", recalculer));
+    function basculerPause() {
+      enPause = !enPause; pause.textContent = enPause ? "Reprendre" : "Pause";
+      arreterAnimation(); programmer();
+    }
+    pause.addEventListener("click", basculerPause);
+    document.addEventListener("keydown", e => {
+      if (e.code !== "Space" || e.repeat || e.ctrlKey || e.altKey || e.metaKey ||
+          (e.target instanceof Element && e.target.closest("input,button,textarea,select,a,[contenteditable]"))) return;
+      e.preventDefault(); basculerPause();
+    });
+    function redimensionner() {
+      const rect = canvas.getBoundingClientRect(); largeur = Math.max(1, rect.width); hauteur = Math.max(1, rect.height);
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = Math.round(largeur*dpr); canvas.height = Math.round(hauteur*dpr); dessiner();
+    }
+    window.addEventListener("resize", redimensionner);
+    if (typeof ResizeObserver !== "undefined") new ResizeObserver(redimensionner).observe(canvas);
+    document.addEventListener("visibilitychange", () => { arreterAnimation(); programmer(); });
+    window.addEventListener("pagehide", e => { arreterAnimation(); if (!e.persisted && worker) worker.terminate(); });
+    window.addEventListener("pageshow", () => { dernierInstant = null; programmer(); });
+    pause.textContent = enPause ? "Reprendre" : "Pause";
+    redimensionner(); recalculer();
+  })();
+  </script>
+</body>
+</html>
