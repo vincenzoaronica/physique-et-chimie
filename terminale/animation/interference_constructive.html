@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interférences de deux sources</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #d9f7ff; background: #02040d; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1400px; margin: auto; padding: 24px 20px; }
+    h1 { margin: 0 0 18px; text-align: center; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 550; }
+    .difference { width: fit-content; margin: 0 auto 24px; padding: 9px 18px; background: #10283a; border: 1px solid #27445a; border-radius: 6px; font-variant-numeric: tabular-nums; text-align: center; }
+    .vues { display: grid; grid-template-columns: 1.08fr 1fr; gap: 24px; }
+    section { min-width: 0; }
+    h2 { font-size: 1rem; font-weight: 500; text-align: center; margin: 0 0 8px; }
+    canvas { display: block; width: 100%; aspect-ratio: 1.16; }
+    #plan { touch-action: none; cursor: crosshair; border-radius: 3px; }
+    .aide { color: #7fa6b8; font-size: .8rem; text-align: center; margin: 7px 0 0; }
+    .legende { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; font-size: .82rem; margin-top: 7px; }
+    .legende span::before { content: ""; display: inline-block; vertical-align: middle; width: 20px; height: 2px; margin-right: 7px; background: currentColor; }
+    .s1 { color: #48e9ff; } .s2 { color: #ff4fd8; } .somme { color: #eaffff; }
+    .controles { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 24px 36px; margin-top: 28px; }
+    .etiquette { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    output { font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 32px; margin: 6px 0 0; accent-color: #48e9ff; cursor: pointer; }
+    fieldset { border: 1px solid #27445a; border-radius: 6px; margin: 0; padding: 10px 16px; }
+    legend { padding: 0 6px; }
+    fieldset label { display: flex; align-items: center; gap: 10px; min-height: 34px; cursor: pointer; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: #48e9ff; }
+    #source2 { accent-color: #ff4fd8; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    button { min-height: 46px; min-width: 138px; padding: 10px 18px; border: 1px solid #27445a; border-radius: 5px; background: #10283a; color: #d9f7ff; font: inherit; cursor: pointer; }
+    button:hover { background: #1b4056; }
+    :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
+    #erreur:empty { display: none; }
+    @media (max-width: 960px) { .actions { flex-direction: column; } .controles { gap: 20px; } }
+    @media (max-width: 720px) {
+      main { padding: 18px 12px; }
+      .vues { grid-template-columns: 1fr; gap: 28px; }
+      .controles { grid-template-columns: 1fr 1fr; }
+      .curseur { grid-column: 1 / -1; }
+      .actions button { min-width: 0; width: 100%; }
+      .difference { margin-bottom: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Interférences de deux sources</h1>
+    <p class="difference" id="difference">d₂ − d₁ = … × λ</p>
+    <div class="vues">
+      <section aria-labelledby="titre-plan">
+        <h2 id="titre-plan">Champ instantané — déplacer M</h2>
+        <canvas id="plan" width="650" height="560" tabindex="0" role="img" aria-label="Champ de deux sources et point M déplaçable" aria-describedby="aide-plan"></canvas>
+        <p class="aide" id="aide-plan">Cliquez ou faites glisser M. Au clavier : utilisez les flèches.</p>
+      </section>
+      <section aria-labelledby="titre-signaux">
+        <h2 id="titre-signaux">Signaux reçus au point M</h2>
+        <canvas id="signaux" width="600" height="517" role="img" aria-label="Signaux de S₁ et S₂ reçus en M, leur somme et le repère du temps courant"></canvas>
+        <div class="legende"><span class="s1">Onde de S₁</span><span class="s2">Onde de S₂</span><span class="somme">Somme s₁ + s₂</span></div>
+      </section>
+    </div>
+    <div class="controles">
+      <div class="curseur">
+        <label class="etiquette" for="lambda">Longueur d’onde λ <output id="val-lambda" for="lambda">1,60</output></label>
+        <input id="lambda" type="range" min="0.6" max="3.2" step="0.02" value="1.6">
+      </div>
+      <fieldset>
+        <legend>Sources actives</legend>
+        <label><input id="source1" type="checkbox" checked> Source S₁</label>
+        <label><input id="source2" type="checkbox" checked> Source S₂</label>
+      </fieldset>
+      <div class="actions">
+        <button id="pause" type="button" title="Pause ou reprise : barre espace">Pause</button>
+        <button id="reset" type="button">Réinitialiser</button>
+      </div>
+    </div>
+    <p id="erreur" role="status"></p>
+    <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+    const CONFIG = {
+      NX: 360, NY: 240, X_MIN: 0, X_MAX: 10, Y_MIN: -4, Y_MAX: 4,
+      SOURCES: [[0, -2.2], [0, 2.2]], M_INITIAL: [2.8, .75],
+      LAMBDA_INITIAL: 1.6,
+      VITESSE: .018 / .035, // Temps réduit t/T par seconde, comme dans le Python.
+      FOND: "#02040d", AXES: "#07101f", TEXTE: "#d9f7ff", SECONDAIRE: "#7fa6b8",
+      COULEURS: ["#48e9ff", "#ff4fd8", "#eaffff"]
+    };
+    const plan = document.getElementById("plan"), signaux = document.getElementById("signaux");
+    const cp = plan.getContext("2d"), cs = signaux.getContext("2d");
+    const raster = document.createElement("canvas"), fondSignaux = document.createElement("canvas");
+    raster.width = CONFIG.NX; raster.height = CONFIG.NY;
+    const cr = raster.getContext("2d"), cf = fondSignaux.getContext("2d");
+    if (!cp || !cs || !cr || !cf) { document.getElementById("erreur").textContent = "Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
+    const lambda = document.getElementById("lambda"), controlesSources = [document.getElementById("source1"), document.getElementById("source2")];
+    const boutonPause = document.getElementById("pause"), difference = document.getElementById("difference");
+    const N = CONFIG.NX * CONFIG.NY, pixels = cr.createImageData(CONFIG.NX, CONFIG.NY);
+    const distances = [new Float32Array(N), new Float32Array(N)];
+    const coeffSin = new Float32Array(N), coeffCos = new Float32Array(N);
+    const palette = new Uint8ClampedArray(4096 * 3);
+    const arrets = [[0,[2,4,13]],[.18,[6,22,45]],[.43,[10,79,120]],[.72,[25,189,214]],[1,[234,255,255]]];
+    for (let i = 0; i < 4096; i++) {
+      const valeur = i / 4095;
+      let j = 0;
+      while (j < arrets.length-2 && valeur > arrets[j+1][0]) j++;
+      const f = (valeur-arrets[j][0]) / (arrets[j+1][0]-arrets[j][0]);
+      for (let c = 0; c < 3; c++) palette[3*i+c] = Math.round(arrets[j][1][c]*(1-f)+arrets[j+1][1][c]*f);
+    }
+    for (let row = 0; row < CONFIG.NY; row++) {
+      const y = 4 - 8*row/(CONFIG.NY-1);
+      for (let col = 0; col < CONFIG.NX; col++) {
+        const x = 10*col/(CONFIG.NX-1), i = row*CONFIG.NX+col;
+        for (let s = 0; s < 2; s++) distances[s][i] = Math.hypot(x, y-CONFIG.SOURCES[s][1]);
+      }
+    }
+    let m = [...CONFIG.M_INITIAL], longueurOnde = CONFIG.LAMBDA_INITIAL, actives = [true, true];
+    let tau = 0, enPause = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let animation = null, dernierInstant = null, pointeur = null;
+    let geoPlan = null, geoSignaux = null, distanceM = [0,0];
+    const format = (v,n=2) => v.toLocaleString("fr-FR", { minimumFractionDigits:n, maximumFractionDigits:n });
+
+    function calculerCoefficients() {
+      const k = 2*Math.PI/longueurOnde;
+      for (let i = 0; i < N; i++) {
+        let a = 0, b = 0;
+        for (let s = 0; s < 2; s++) if (actives[s]) {
+          a += Math.cos(k*distances[s][i]); b -= Math.sin(k*distances[s][i]);
+        }
+        coeffSin[i] = a; coeffCos[i] = b;
+      }
+    }
+    function rendreChamp() {
+      const sin = Math.sin(2*Math.PI*tau), cos = Math.cos(2*Math.PI*tau), data = pixels.data;
+      for (let i = 0; i < N; i++) {
+        const champ = coeffSin[i]*sin + coeffCos[i]*cos;
+        // Même palette que l’animation précédente. La luminosité est une
+        // compression du carré du champ ; les courbes gardent son signe.
+        const niveau = 1-Math.exp(-champ*champ);
+        const couleur = Math.min(4095, Math.floor(niveau*4095))*3, p = i*4;
+        data[p] = palette[couleur]; data[p+1] = palette[couleur+1]; data[p+2] = palette[couleur+2]; data[p+3] = 255;
+      }
+      cr.putImageData(pixels,0,0);
+    }
+    function geometrie(canvas, estPlan) {
+      const boite = canvas.getBoundingClientRect(), width = Math.max(1,boite.width), height = Math.max(1,boite.height);
+      const dpr = Math.min(devicePixelRatio || 1,2);
+      canvas.width = Math.round(width*dpr); canvas.height = Math.round(height*dpr);
+      const left = width < 430 ? 40 : 48, top = 13;
+      const disponibleW = Math.max(1,width-left-15), disponibleH = Math.max(1,height-top-42);
+      const h = estPlan ? Math.min(disponibleH,disponibleW*.8) : disponibleH;
+      const w = estPlan ? h/0.8 : disponibleW;
+      return { width,height,dpr,left,top,w,h,
+        x:v => left + (estPlan ? v/10 : v/2)*w,
+        y:v => top + (estPlan ? (4-v)/8 : (2.25-v)/4.5)*h };
+    }
+    function axes(ctx,g,estPlan) {
+      ctx.strokeStyle = "#27445a"; ctx.lineWidth = 1; ctx.strokeRect(g.left,g.top,g.w,g.h);
+      ctx.font = "11px system-ui"; ctx.fillStyle = CONFIG.SECONDAIRE; ctx.textAlign = "center";
+      const xticks = estPlan ? [0,2,4,6,8,10] : (g.w < 300 ? [0,.5,1,1.5,2] : [0,.25,.5,.75,1,1.25,1.5,1.75,2]);
+      for (const v of xticks) ctx.fillText(String(v).replace(".",","),g.x(v),g.top+g.h+16);
+      ctx.textAlign = "right";
+      for (const v of (estPlan ? [-4,-2,0,2,4] : [-2,-1,0,1,2])) ctx.fillText(String(v),g.left-7,g.y(v)+4);
+      ctx.fillStyle = CONFIG.TEXTE; ctx.textAlign = "center";
+      ctx.fillText(estPlan ? "x (unité de longueur)" : "Temps réduit t / T",g.left+g.w/2,g.top+g.h+34);
+      ctx.save(); ctx.translate(12,g.top+g.h/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText(estPlan ? "y (unité de longueur)" : "Amplitude",0,0); ctx.restore();
+    }
+    function etoile(ctx,x,y,rayon) {
+      ctx.beginPath();
+      for (let j=0;j<10;j++) {
+        const angle = -Math.PI/2+j*Math.PI/5, r = j%2 ? rayon*.44 : rayon;
+        if (j===0) ctx.moveTo(x+Math.cos(angle)*r,y+Math.sin(angle)*r);
+        else ctx.lineTo(x+Math.cos(angle)*r,y+Math.sin(angle)*r);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    function dessinerPlan() {
+      if (!geoPlan) return;
+      const g = geoPlan;
+      cp.setTransform(g.dpr,0,0,g.dpr,0,0); cp.fillStyle=CONFIG.FOND; cp.fillRect(0,0,g.width,g.height);
+      cp.imageSmoothingEnabled=true; cp.imageSmoothingQuality="high";
+      cp.drawImage(raster,g.left,g.top,g.w,g.h); axes(cp,g,true);
+      for (let s=0;s<2;s++) {
+        const [sx,sy]=CONFIG.SOURCES[s];
+        cp.save(); cp.globalAlpha=actives[s] ? 1 : .22;
+        cp.strokeStyle=CONFIG.COULEURS[s]; cp.lineWidth=1.5; cp.setLineDash([6,5]);
+        cp.beginPath(); cp.moveTo(g.x(sx),g.y(sy)); cp.lineTo(g.x(m[0]),g.y(m[1])); cp.stroke();
+        cp.setLineDash([]); cp.fillStyle=CONFIG.COULEURS[s]; cp.strokeStyle="#eaffff"; cp.lineWidth=1;
+        etoile(cp,g.x(sx),g.y(sy),10);
+        cp.font="bold 13px system-ui"; cp.textAlign="left"; cp.lineWidth=4; cp.strokeStyle=CONFIG.FOND;
+        cp.strokeText(s===0?"S₁":"S₂",g.x(sx)+15,g.y(sy)+5);
+        cp.fillText(s===0?"S₁":"S₂",g.x(sx)+15,g.y(sy)+5); cp.restore();
+      }
+      cp.fillStyle="#eaffff"; cp.strokeStyle=CONFIG.FOND; cp.lineWidth=2;
+      cp.beginPath(); cp.arc(g.x(m[0]),g.y(m[1]),6,0,2*Math.PI); cp.fill(); cp.stroke();
+      cp.font="bold 14px system-ui"; cp.textAlign=m[0]>9 ? "right" : "left";
+      const lx=g.x(m[0])+(m[0]>9?-10:10), ly=g.y(m[1])+(m[1]>3.4?20:-10);
+      cp.lineWidth=4; cp.strokeText("M",lx,ly); cp.fillText("M",lx,ly);
+    }
+    function valeurs(t) {
+      const v = distanceM.map((d,s) => actives[s] ? Math.sin(2*Math.PI*(t-d/longueurOnde)) : 0);
+      return [v[0],v[1],v[0]+v[1]];
+    }
+    function preparerSignaux() {
+      if (!geoSignaux) return;
+      const g=geoSignaux;
+      cf.setTransform(g.dpr,0,0,g.dpr,0,0); cf.fillStyle=CONFIG.FOND; cf.fillRect(0,0,g.width,g.height);
+      cf.fillStyle=CONFIG.AXES; cf.fillRect(g.left,g.top,g.w,g.h);
+      cf.strokeStyle="#18354a"; cf.lineWidth=.7;
+      cf.beginPath();
+      for (let t=0;t<=2;t+=.25) { cf.moveTo(g.x(t),g.top); cf.lineTo(g.x(t),g.top+g.h); }
+      for (let a=-2;a<=2;a++) { cf.moveTo(g.left,g.y(a)); cf.lineTo(g.left+g.w,g.y(a)); }
+      cf.stroke();
+      cf.strokeStyle="#426077"; cf.beginPath(); cf.moveTo(g.left,g.y(0)); cf.lineTo(g.left+g.w,g.y(0)); cf.stroke();
+      axes(cf,g,false);
+      for (let s=0;s<3;s++) {
+        cf.save(); cf.globalAlpha=s<2&&!actives[s] ? .22 : 1;
+        cf.strokeStyle=CONFIG.COULEURS[s]; cf.lineWidth=s===2?2.6:1.5;
+        cf.beginPath();
+        for (let i=0;i<900;i++) {
+          const t=2*i/899, a=valeurs(t)[s];
+          if (i===0) cf.moveTo(g.x(t),g.y(a)); else cf.lineTo(g.x(t),g.y(a));
+        }
+        cf.stroke(); cf.restore();
+      }
+    }
+    function dessinerSignaux() {
+      if (!geoSignaux) return;
+      const g=geoSignaux;
+      cs.setTransform(1,0,0,1,0,0); cs.clearRect(0,0,signaux.width,signaux.height); cs.drawImage(fondSignaux,0,0);
+      cs.setTransform(g.dpr,0,0,g.dpr,0,0); cs.strokeStyle="#7fa6b8"; cs.lineWidth=1; cs.setLineDash([2,4]);
+      cs.beginPath(); cs.moveTo(g.x(tau),g.top); cs.lineTo(g.x(tau),g.top+g.h); cs.stroke(); cs.setLineDash([]);
+      const v=valeurs(tau);
+      for (let s=0;s<3;s++) {
+        cs.save(); cs.globalAlpha=s<2&&!actives[s] ? .22 : 1;
+        cs.fillStyle=CONFIG.COULEURS[s]; cs.strokeStyle=CONFIG.FOND; cs.lineWidth=1.3;
+        cs.beginPath(); cs.arc(g.x(tau),g.y(v[s]),s===2?4.8:3.8,0,2*Math.PI); cs.fill(); cs.stroke(); cs.restore();
+      }
+    }
+    function actualiserM() {
+      distanceM=CONFIG.SOURCES.map(([x,y])=>Math.hypot(m[0]-x,m[1]-y));
+      const ratio=(distanceM[1]-distanceM[0])/longueurOnde;
+      difference.textContent=`d₂ − d₁ = ${ratio>=0?"+":""}${format(ratio,3)} × λ`;
+      plan.setAttribute("aria-label",`Champ de deux sources. Point M : x = ${format(m[0])}, y = ${format(m[1])}.`);
+      preparerSignaux(); dessinerPlan(); dessinerSignaux();
+    }
+    function actualiserReglages() {
+      longueurOnde=Number(lambda.value); actives=controlesSources.map(c=>c.checked);
+      document.getElementById("val-lambda").textContent=format(longueurOnde);
+      lambda.setAttribute("aria-valuetext",format(longueurOnde));
+      calculerCoefficients(); rendreChamp(); actualiserM();
+    }
+    function arreter() { if(animation!==null) cancelAnimationFrame(animation); animation=null; dernierInstant=null; }
+    function programmer() { if(!enPause&&!document.hidden&&animation===null) animation=requestAnimationFrame(animer); }
+    function animer(instant) {
+      animation=null;
+      if(enPause||document.hidden) return;
+      if(dernierInstant!==null) tau=(tau+Math.min((instant-dernierInstant)/1000,.05)*CONFIG.VITESSE)%2;
+      dernierInstant=instant; rendreChamp(); dessinerPlan(); dessinerSignaux(); programmer();
+    }
+    function basculerPause() { enPause=!enPause; boutonPause.textContent=enPause?"Reprendre":"Pause"; arreter(); programmer(); }
+    function deplacer(e) {
+      const rect=plan.getBoundingClientRect(), g=geoPlan;
+      const px=(e.clientX-rect.left)*g.width/rect.width, py=(e.clientY-rect.top)*g.height/rect.height;
+      m=[Math.max(0,Math.min(10,(px-g.left)/g.w*10)),Math.max(-4,Math.min(4,4-(py-g.top)/g.h*8))];
+      actualiserM();
+    }
+    plan.addEventListener("pointerdown",e=>{
+      if(e.button!==0||pointeur!==null||!geoPlan) return;
+      const r=plan.getBoundingClientRect(), x=(e.clientX-r.left)*geoPlan.width/r.width, y=(e.clientY-r.top)*geoPlan.height/r.height;
+      if(x<geoPlan.left||x>geoPlan.left+geoPlan.w||y<geoPlan.top||y>geoPlan.top+geoPlan.h) return;
+      e.preventDefault(); plan.focus({preventScroll:true}); pointeur=e.pointerId; plan.setPointerCapture(pointeur); deplacer(e);
+    });
+    plan.addEventListener("pointermove",e=>{if(e.pointerId===pointeur) deplacer(e);});
+    for(const nom of ["pointerup","pointercancel","lostpointercapture"]) plan.addEventListener(nom,e=>{
+      if(e.pointerId!==pointeur) return;
+      pointeur=null; if(plan.hasPointerCapture(e.pointerId)) plan.releasePointerCapture(e.pointerId);
+    });
+    plan.addEventListener("keydown",e=>{
+      const pas = e.shiftKey ? 0.2 : 0.05;
+      const mouvements={ArrowLeft:[-pas,0],ArrowRight:[pas,0],ArrowUp:[0,pas],ArrowDown:[0,-pas]};
+      const d=mouvements[e.key]; if(!d) return;
+      e.preventDefault(); m=[Math.max(0,Math.min(10,m[0]+d[0])),Math.max(-4,Math.min(4,m[1]+d[1]))]; actualiserM();
+    });
+    document.addEventListener("keydown",e=>{
+      if(e.code!=="Space"||e.repeat||e.ctrlKey||e.altKey||e.metaKey||
+        (e.target instanceof Element&&e.target.closest("input,button,textarea,select,a,[contenteditable]"))) return;
+      e.preventDefault(); basculerPause();
+    });
+    lambda.addEventListener("input",actualiserReglages);
+    controlesSources.forEach(c=>c.addEventListener("change",actualiserReglages));
+    boutonPause.addEventListener("click",basculerPause);
+    document.getElementById("reset").addEventListener("click",()=>{
+      m=[...CONFIG.M_INITIAL]; tau=0; lambda.value=CONFIG.LAMBDA_INITIAL; controlesSources.forEach(c=>c.checked=true);
+      dernierInstant=null; actualiserReglages();
+    });
+    function redimensionner() {
+      geoPlan=geometrie(plan,true); geoSignaux=geometrie(signaux,false);
+      fondSignaux.width=signaux.width; fondSignaux.height=signaux.height;
+      preparerSignaux(); dessinerPlan(); dessinerSignaux();
+    }
+    window.addEventListener("resize",redimensionner);
+    if(typeof ResizeObserver!=="undefined") { const observateur=new ResizeObserver(redimensionner); observateur.observe(plan); observateur.observe(signaux); }
+    document.addEventListener("visibilitychange",()=>{arreter();programmer();});
+    window.addEventListener("pagehide",arreter);
+    window.addEventListener("pageshow",()=>{dernierInstant=null;programmer();});
+    boutonPause.textContent=enPause?"Reprendre":"Pause";
+    actualiserReglages(); redimensionner(); programmer();
+  })();
+  </script>
+</body>
+</html>
