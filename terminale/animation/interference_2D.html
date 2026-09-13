@@ -16,7 +16,6 @@
     .etiquette { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
     output { font-variant-numeric: tabular-nums; }
     input[type="range"] { display: block; width: 100%; height: 30px; margin: 4px 0 0; accent-color: #48e9ff; cursor: pointer; }
-    #ecran { accent-color: #ff4fd8; }
     fieldset { margin: 0; padding: 14px 18px; border: 1px solid #27445a; border-radius: 6px; }
     legend { padding: 0 6px; }
     fieldset label { display: flex; align-items: center; gap: 10px; min-height: 38px; cursor: pointer; }
@@ -49,10 +48,6 @@
           <label class="etiquette" for="ecartement">Écartement d <output id="val-ecartement" for="ecartement">2,80</output></label>
           <input id="ecartement" type="range" min="1.00" max="3.60" step="0.02" value="2.80">
         </div>
-        <div>
-          <label class="etiquette" for="ecran">Position écran x <output id="val-ecran" for="ecran">8,50</output></label>
-          <input id="ecran" type="range" min="3.00" max="11.50" step="0.05" value="8.50">
-        </div>
       </div>
       <fieldset>
         <legend>Sources actives</legend>
@@ -70,7 +65,7 @@
     const CONFIG = {
       X_MIN: -0.65, X_MAX: 12.5, Y_MIN: -3.5, Y_MAX: 3.5,
       NX: 640, NY: 340, HAUTEUR_OUVERTURE: 0.42, NB_SOURCES: 7,
-      PAROI: "#a9b4c2", CYAN: "#48e9ff", MAGENTA: "#ff4fd8",
+      PAROI: "#a9b4c2", CYAN: "#48e9ff",
       // Le Python avançait de 2π/70 toutes les 33 ms.
       VITESSE_PHASE: 2 * Math.PI / (70 * 0.033)
     };
@@ -131,7 +126,6 @@
     if (!ctx || !rctx) { etat.textContent = "Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
     const pixels = rctx.createImageData(CONFIG.NX, CONFIG.NY);
     const lambda = document.getElementById("lambda"), ecartement = document.getElementById("ecartement");
-    const ecran = document.getElementById("ecran");
     const sources = [document.getElementById("source-basse"), document.getElementById("source-haute")];
     const format = v => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const palette = new Uint8ClampedArray(4096 * 3);
@@ -175,10 +169,6 @@
         const rx = x(-.1), ry = y(centre + demi), rw = x(.1) - rx, rh = CONFIG.HAUTEUR_OUVERTURE * h / 7;
         ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh);
       }
-      ctx.strokeStyle = CONFIG.MAGENTA; ctx.lineWidth = 1.6; ctx.setLineDash([7,5]);
-      ctx.beginPath(); ctx.moveTo(x(Number(ecran.value)), haut); ctx.lineTo(x(Number(ecran.value)), haut+h); ctx.stroke();
-      ctx.setLineDash([]); ctx.font = "12px system-ui"; ctx.textAlign = "left";
-      ctx.fillStyle = CONFIG.MAGENTA; ctx.fillText("écran", x(Number(ecran.value))+5, haut+18);
       ctx.restore();
       ctx.strokeStyle = "#27445a"; ctx.lineWidth = 1; ctx.strokeRect(gauche, haut, pw, h);
       ctx.fillStyle = "#7fa6b8"; ctx.font = "11px system-ui"; ctx.textAlign = "center";
@@ -254,12 +244,12 @@
       } catch { worker = null; }
       finally { if (url) URL.revokeObjectURL(url); }
     }
-    for (const input of [lambda, ecartement, ecran]) {
+    for (const input of [lambda, ecartement]) {
       input.addEventListener("input", () => {
         const valeur = format(input.value);
         document.getElementById("val-"+input.id).textContent = valeur;
         input.setAttribute("aria-valuetext", valeur);
-        if (input === ecran) dessiner(); else recalculer();
+        recalculer();
       });
     }
     sources.forEach(source => source.addEventListener("change", recalculer));
