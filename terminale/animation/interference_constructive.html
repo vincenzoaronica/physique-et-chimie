@@ -10,13 +10,12 @@
     body { margin: 0; }
     main { max-width: 1400px; margin: auto; padding: 24px 20px; }
     h1 { margin: 0 0 18px; text-align: center; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 550; }
-    .difference { width: fit-content; margin: 0 auto 24px; padding: 9px 18px; background: #10283a; border: 1px solid #27445a; border-radius: 6px; font-variant-numeric: tabular-nums; text-align: center; }
+    .difference { width: fit-content; margin: 0 auto 24px; padding: 12px 22px; background: #10283a; border: 1px solid #27445a; border-radius: 6px; font-size: clamp(1.25rem, 2.4vw, 1.6rem); font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
     .vues { display: grid; grid-template-columns: 1.08fr 1fr; gap: 24px; }
     section { min-width: 0; }
     h2 { font-size: 1rem; font-weight: 500; text-align: center; margin: 0 0 8px; }
     canvas { display: block; width: 100%; aspect-ratio: 1.16; }
     #plan { touch-action: none; cursor: crosshair; border-radius: 3px; }
-    .aide { color: #7fa6b8; font-size: .8rem; text-align: center; margin: 7px 0 0; }
     .legende { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; font-size: .82rem; margin-top: 7px; }
     .legende span::before { content: ""; display: inline-block; vertical-align: middle; width: 20px; height: 2px; margin-right: 7px; background: currentColor; }
     .s1 { color: #5de5b0; } .s2 { color: #ffd166; } .somme { color: #eaffff; }
@@ -53,8 +52,7 @@
     <div class="vues">
       <section aria-labelledby="titre-plan">
         <h2 id="titre-plan">Champ instantané — déplacer M</h2>
-        <canvas id="plan" width="650" height="560" tabindex="0" role="img" aria-label="Champ de deux sources et point M déplaçable" aria-describedby="aide-plan"></canvas>
-        <p class="aide" id="aide-plan">Cliquez ou faites glisser M. Au clavier : utilisez les flèches.</p>
+        <canvas id="plan" width="650" height="560" tabindex="0" role="img" aria-label="Champ de deux sources et point M déplaçable"></canvas>
       </section>
       <section aria-labelledby="titre-signaux">
         <h2 id="titre-signaux">Signaux reçus au point M</h2>
@@ -192,9 +190,9 @@
         cp.strokeStyle=CONFIG.COULEURS[s]; cp.lineWidth=1.5; cp.setLineDash([6,5]);
         cp.beginPath(); cp.moveTo(g.x(sx),g.y(sy)); cp.lineTo(g.x(m[0]),g.y(m[1])); cp.stroke();
         cp.setLineDash([]); cp.fillStyle=CONFIG.COULEURS[s]; cp.strokeStyle="#eaffff"; cp.lineWidth=1;
-        etoile(cp,g.x(sx),g.y(sy),10);
-        cp.font="bold 13px system-ui"; cp.textAlign="left";
-        cp.fillText(s===0?"S₁":"S₂",g.x(sx)+15,g.y(sy)+5); cp.restore();
+        etoile(cp,g.x(sx),g.y(sy),15);
+        cp.font="bold 20px system-ui"; cp.textAlign="left";
+        cp.fillText(s===0?"S₁":"S₂",g.x(sx)+21,g.y(sy)+7); cp.restore();
       }
       cp.fillStyle="#eaffff"; cp.strokeStyle=CONFIG.FOND; cp.lineWidth=2;
       cp.beginPath(); cp.arc(g.x(m[0]),g.y(m[1]),6,0,2*Math.PI); cp.fill(); cp.stroke();
@@ -241,7 +239,7 @@
         if (s===2 && !afficherSomme.checked) continue;
         cs.save(); cs.globalAlpha=s<2&&!actives[s] ? .22 : 1;
         cs.fillStyle=CONFIG.COULEURS[s]; cs.strokeStyle=CONFIG.FOND; cs.lineWidth=1.3;
-        cs.beginPath(); cs.arc(g.x(tau),g.y(v[s]),s===2?4.8:3.8,0,2*Math.PI); cs.fill(); cs.stroke(); cs.restore();
+        cs.beginPath(); cs.arc(g.x(tau),g.y(v[s]),s===2?9:7,0,2*Math.PI); cs.fill(); cs.stroke(); cs.restore();
       }
     }
     function actualiserM() {
