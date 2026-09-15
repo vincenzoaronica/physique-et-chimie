@@ -21,6 +21,8 @@
     output { font-variant-numeric: tabular-nums; }
     input[type="range"] { display: block; width: 100%; height: 32px; margin: 4px 0 0; accent-color: #48e9ff; cursor: pointer; }
     .actions { display: grid; gap: 12px; }
+    .option-negatifs { justify-content: flex-start; align-items: center; gap: 8px; font-size: .9rem; cursor: pointer; }
+    .option-negatifs input { width: 16px; height: 16px; margin: 0; accent-color: #f1686a; }
     button { min-height: 46px; min-width: 150px; padding: 10px 20px; border: 1px solid #27445a; border-radius: 4px; background: #10283a; color: #d9f7ff; font: inherit; cursor: pointer; }
     button:hover { background: #1b4056; }
     :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
@@ -54,6 +56,7 @@
           <label for="ouverture">Largeur de l’ouverture a <output id="valeur-ouverture" for="ouverture">0,40</output></label>
           <input id="ouverture" type="range" min="0.20" max="4.00" step="0.02" value="0.40">
         </div>
+        <label class="option-negatifs"><input id="negatifs-rouges" type="checkbox" checked> Négatifs en rouge</label>
       </div>
       <div class="actions">
         <button id="pause" type="button">Pause</button>
@@ -172,7 +175,7 @@
         }
       }
 
-      function rendre(temps, tampon) {
+      function rendre(temps, tampon, negatifsRouges = true) {
         const octets = NX * NY * 4;
         const pixels = tampon && tampon.byteLength === octets
           ? new Uint8ClampedArray(tampon) : new Uint8ClampedArray(octets);
@@ -181,7 +184,9 @@
           const age = temps - col * dx / CELERITE;
           const enveloppe = rampe(age * CELERITE / longueurRampe);
           const niveau = enveloppe * Math.cos(omega * age) * 0.90;
-          pixelGauche[col] = Math.max(0, Math.min(4096, 2048 + Math.round(niveau * 2048)));
+          // Positifs en bleu ; négatifs en rouge, ou masqués dans le fond.
+          const valeurCouleur = niveau < 0 && !negatifsRouges ? 0 : -niveau;
+          pixelGauche[col] = Math.max(0, Math.min(4096, 2048 + Math.round(valeurCouleur * 2048)));
         }
         for (let ligne = 0; ligne < NY; ligne++) {
           let pixel = ligne * NX * 4;
@@ -221,7 +226,8 @@
               }
             }
             const niveau = (champ / echelle) * gain[index];
-            const couleur = 3 * Math.max(0, Math.min(4096, 2048 + Math.round(niveau * 2048)));
+            const valeurCouleur = niveau < 0 && !negatifsRouges ? 0 : -niveau;
+            const couleur = 3 * Math.max(0, Math.min(4096, 2048 + Math.round(valeurCouleur * 2048)));
             pixels[pixelHaut] = pixels[pixelBas] = palette[couleur];
             pixels[pixelHaut + 1] = pixels[pixelBas + 1] = palette[couleur + 1];
             pixels[pixelHaut + 2] = pixels[pixelBas + 2] = palette[couleur + 2];
@@ -241,6 +247,7 @@
     const rasterCtx = raster.getContext("2d");
     const lambda = document.getElementById("lambda");
     const ouverture = document.getElementById("ouverture");
+    const negatifsRouges = document.getElementById("negatifs-rouges");
     const boutonPause = document.getElementById("pause");
     const etat = document.getElementById("etat");
     const format = v => Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -320,6 +327,12 @@
         dernierInstant = null;
         actualiserEtat();
       }
+      tamponLibre = message.tampon;
+      // Si l’option a changé pendant un calcul, recolorer au même instant.
+      if (message.negatifsRouges !== negatifsRouges.checked) {
+        rafraichirCouleurs();
+        return;
+      }
       const pixels = new Uint8ClampedArray(message.tampon);
       rasterCtx.putImageData(new ImageData(pixels, CONFIG.NX, CONFIG.NY), 0, 0);
       tamponLibre = message.tampon;
@@ -328,6 +341,7 @@
     }
 
     function envoyer(message) {
+      message.negatifsRouges = negatifsRouges.checked;
       if (worker) {
         worker.postMessage(message, message.tampon ? [message.tampon] : []);
         return;
@@ -341,7 +355,8 @@
           recevoir({
             type: message.type === "configurer" ? "pret" : "image",
             generation: message.generation,
-            tampon: modeleLocal.rendre(message.temps || 0, message.tampon)
+            negatifsRouges: message.negatifsRouges,
+            tampon: modeleLocal.rendre(message.temps || 0, message.tampon, message.negatifsRouges)
           });
         } catch (e) { erreur(e.message); }
       }, 0);
@@ -382,6 +397,15 @@
       temporisation = setTimeout(reinitialiser, 100);
     }
 
+    function rafraichirCouleurs() {
+      if (!pret || occupe) return;
+      annulerImage();
+      occupe = true;
+      const tampon = tamponLibre;
+      tamponLibre = null;
+      envoyer({ type: "image", generation, temps, tampon });
+    }
+
     function basculerPause() {
       enPause = !enPause;
       dernierInstant = null;
@@ -413,9 +437,9 @@
           self.onmessage = ({data: m}) => {
             try {
               if (m.type === "configurer") modele.configurer(m.lambda, m.largeur);
-              const tampon = modele.rendre(m.temps || 0, m.tampon);
+              const tampon = modele.rendre(m.temps || 0, m.tampon, m.negatifsRouges);
               self.postMessage({type: m.type === "configurer" ? "pret" : "image",
-                generation: m.generation, tampon}, [tampon]);
+                generation: m.generation, negatifsRouges: m.negatifsRouges, tampon}, [tampon]);
             } catch (e) {
               self.postMessage({type: "erreur", generation: m.generation, message: e.message});
             }
@@ -435,6 +459,7 @@
 
     lambda.addEventListener("input", modifierParametres);
     ouverture.addEventListener("input", modifierParametres);
+    negatifsRouges.addEventListener("change", rafraichirCouleurs);
     boutonPause.addEventListener("click", basculerPause);
     document.getElementById("reset").addEventListener("click", reinitialiser);
     document.addEventListener("keydown", event => {
