@@ -28,17 +28,13 @@
     .affichage label { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
     input[type="checkbox"] { width: 17px; height: 17px; margin: 0; accent-color: #5de5b0; }
     #voir-s2 { accent-color: #ffd166; } #voir-somme { accent-color: #eaffff; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
-    button { min-height: 46px; min-width: 140px; padding: 10px 18px; border: 1px solid #27445a; border-radius: 5px; background: #10283a; color: #d9f7ff; font: inherit; cursor: pointer; }
-    button:hover { background: #1b4056; }
     :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
     #erreur:empty { display: none; }
     @media (max-width: 650px) {
       main { padding: 18px 10px; }
       .reglages { grid-template-columns: 1fr; gap: 18px; }
       fieldset { padding: 12px 16px; }
-      .bas, .affichage, .actions { width: 100%; }
-      .actions button { flex: 1; min-width: 0; }
+      .bas, .affichage { width: 100%; }
     }
   </style>
 </head>
@@ -46,8 +42,7 @@
   <main>
     <h1>Somme de deux signaux sinusoïdaux</h1>
     <div class="mesures">
-      <span id="dephasage">Δφ = φ₂ − φ₁ = +90°</span>
-      <span id="amplitude-somme">Amplitude de la somme : 1,41</span>
+      <span id="dephasage">Décalage relatif : δ₂ − δ₁ = 0,00 λ</span>
     </div>
     <canvas id="signaux" width="1120" height="440" role="img" aria-label="Deux signaux sinusoïdaux de même période et leur somme. S₁ en vert menthe, S₂ en doré et la somme en blanc."></canvas>
     <div class="reglages">
@@ -58,8 +53,8 @@
           <input id="amplitude1" type="range" min="0" max="2" step="0.05" value="1">
         </div>
         <div class="curseur">
-          <label class="etiquette" for="phase1">Phase φ₁ <output id="val-phase1" for="phase1">0°</output></label>
-          <input id="phase1" type="range" min="-180" max="180" step="1" value="0">
+          <label class="etiquette" for="phase1">Décalage δ₁ <output id="val-phase1" for="phase1">0,00 λ</output></label>
+          <input id="phase1" type="range" min="-0.5" max="0.5" step="0.01" value="0">
         </div>
       </fieldset>
       <fieldset id="reglages-s2">
@@ -69,8 +64,8 @@
           <input id="amplitude2" type="range" min="0" max="2" step="0.05" value="1">
         </div>
         <div class="curseur">
-          <label class="etiquette" for="phase2">Phase φ₂ <output id="val-phase2" for="phase2">+90°</output></label>
-          <input id="phase2" type="range" min="-180" max="180" step="1" value="90">
+          <label class="etiquette" for="phase2">Décalage δ₂ <output id="val-phase2" for="phase2">0,00 λ</output></label>
+          <input id="phase2" type="range" min="-0.5" max="0.5" step="0.01" value="0">
         </div>
       </fieldset>
     </div>
@@ -81,10 +76,6 @@
         <label class="s2"><input id="voir-s2" type="checkbox" checked> S₂</label>
         <label class="somme"><input id="voir-somme" type="checkbox" checked> S₁ + S₂</label>
       </fieldset>
-      <div class="actions">
-        <button id="pause" type="button" title="Pause ou reprise : barre espace">Pause</button>
-        <button id="reset" type="button">Réinitialiser</button>
-      </div>
     </div>
     <p id="erreur" role="status"></p>
     <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
@@ -92,22 +83,22 @@
   <script>
   (() => {
     "use strict";
-    // Sᵢ(t) = Aᵢ sin(2π t/T + φᵢ). Les deux signaux ont la même période T.
+    // Sᵢ(t) = Aᵢ sin(2π t/T + 2π δᵢ/λ). Les curseurs donnent δᵢ/λ.
+    // δ est le décalage spatial équivalent à la phase : λ/2 correspond à π.
+    // À décalage nul, les signaux partent de zéro vers leur maximum positif.
     const CONFIG = {
       COULEURS: ["#5de5b0", "#ffd166", "#eaffff"],
       FOND: "#02040d", PLOT: "#07101f", TEXTE: "#d9f7ff", SECONDAIRE: "#7fa6b8",
-      VITESSE: .5, LIMITE_Y: 4.4
+      LIMITE_Y: 4.4
     };
     const canvas = document.getElementById("signaux"), ctx = canvas.getContext("2d");
     const fond = document.createElement("canvas"), cf = fond.getContext("2d");
     if (!ctx || !cf) { document.getElementById("erreur").textContent="Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
     const sliders = ["amplitude1","phase1","amplitude2","phase2"].map(id=>document.getElementById(id));
     const affichage = ["voir-s1","voir-s2","voir-somme"].map(id=>document.getElementById(id));
-    const pause = document.getElementById("pause");
-    let amplitudes=[1,1], phases=[0,Math.PI/2], tau=0, geometrie=null;
-    let enPause=matchMedia("(prefers-reduced-motion: reduce)").matches, animation=null, dernierInstant=null;
+    let amplitudes=[1,1], phases=[0,0], geometrie=null;
     const format=v=>v.toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2});
-    const angle=v=>(v>0?"+":"")+v+"°";
+    const decalage=v=>(v>0?"+":"")+format(v)+" λ";
     function valeurs(t) {
       const a=amplitudes[0]*Math.sin(2*Math.PI*t+phases[0]);
       const b=amplitudes[1]*Math.sin(2*Math.PI*t+phases[1]);
@@ -150,56 +141,23 @@
     }
     function dessiner() {
       if(!geometrie) return;
-      const g=geometrie;
       ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(fond,0,0);
-      if(!affichage.some(c=>c.checked)) return;
-      ctx.setTransform(g.dpr,0,0,g.dpr,0,0); ctx.strokeStyle=CONFIG.SECONDAIRE; ctx.lineWidth=1; ctx.setLineDash([2,5]);
-      ctx.beginPath(); ctx.moveTo(g.x(tau),g.top); ctx.lineTo(g.x(tau),g.top+g.ph); ctx.stroke(); ctx.setLineDash([]);
-      const v=valeurs(tau);
-      for(let s=0;s<3;s++) {
-        if(!affichage[s].checked) continue;
-        ctx.fillStyle=CONFIG.COULEURS[s]; ctx.strokeStyle=CONFIG.FOND; ctx.lineWidth=1.5;
-        ctx.beginPath(); ctx.arc(g.x(tau),g.y(v[s]),s===2?8:6,0,2*Math.PI); ctx.fill(); ctx.stroke();
-      }
     }
     function actualiser() {
       amplitudes=[Number(sliders[0].value),Number(sliders[2].value)];
-      phases=[Number(sliders[1].value)*Math.PI/180,Number(sliders[3].value)*Math.PI/180];
+      phases=[Number(sliders[1].value)*2*Math.PI,Number(sliders[3].value)*2*Math.PI];
       for(const input of sliders) {
-        const v=Number(input.value), texte=input.id.startsWith("phase")?angle(v):format(v);
+        const v=Number(input.value), texte=input.id.startsWith("phase")?decalage(v):format(v);
         document.getElementById("val-"+input.id).textContent=texte; input.setAttribute("aria-valuetext",texte);
       }
-      const delta=Number(sliders[3].value)-Number(sliders[1].value);
-      const a=Math.hypot(amplitudes[0]*Math.cos(phases[0])+amplitudes[1]*Math.cos(phases[1]),
-        amplitudes[0]*Math.sin(phases[0])+amplitudes[1]*Math.sin(phases[1]));
-      document.getElementById("dephasage").textContent="Δφ = φ₂ − φ₁ = "+angle(delta);
-      document.getElementById("amplitude-somme").textContent="Amplitude de la somme : "+format(a);
+      const delta=Math.round((Number(sliders[3].value)-Number(sliders[1].value))*100)/100;
+      document.getElementById("dephasage").textContent="Décalage relatif : δ₂ − δ₁ = "+decalage(delta);
       const visibles=["S₁","S₂","S₁ + S₂"].filter((_,i)=>affichage[i].checked);
-      canvas.setAttribute("aria-label",`Signaux sinusoïdaux de même période. Courbes affichées : ${visibles.join(", ")||"aucune"}. Déphasage : ${delta} degrés. Amplitude de la somme : ${format(a)}.`);
+      canvas.setAttribute("aria-label",`Signaux sinusoïdaux de même période. Courbes affichées : ${visibles.join(", ")||"aucune"}. Décalage relatif équivalent : ${format(delta)} longueur d’onde.`);
       preparerCourbes(); dessiner();
-    }
-    function arreter() { if(animation!==null) cancelAnimationFrame(animation); animation=null; dernierInstant=null; }
-    function programmer() { if(!enPause&&!document.hidden&&animation===null) animation=requestAnimationFrame(animer); }
-    function animer(instant) {
-      animation=null; if(enPause||document.hidden) return;
-      if(dernierInstant!==null) tau=(tau+Math.min((instant-dernierInstant)/1000,.05)*CONFIG.VITESSE)%2;
-      dernierInstant=instant; dessiner(); programmer();
-    }
-    function basculerPause() { enPause=!enPause; pause.textContent=enPause?"Reprendre":"Pause"; arreter(); programmer(); }
-    function reinitialiser() {
-      arreter(); tau=0;
-      [1,0,1,90].forEach((v,i)=>sliders[i].value=v); affichage.forEach(c=>c.checked=true);
-      actualiser(); programmer();
     }
     sliders.forEach(input=>input.addEventListener("input",actualiser));
     affichage.forEach(input=>input.addEventListener("change",actualiser));
-    pause.addEventListener("click",basculerPause);
-    document.getElementById("reset").addEventListener("click",reinitialiser);
-    document.addEventListener("keydown",e=>{
-      if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||(e.target instanceof Element&&e.target.closest("input,button,textarea,select,a,[contenteditable]"))) return;
-      if(e.code==="Space") {e.preventDefault();basculerPause();}
-      else if(e.key.toLowerCase()==="r") {e.preventDefault();reinitialiser();}
-    });
     function redimensionner() {
       const rect=canvas.getBoundingClientRect(), w=Math.max(1,rect.width), h=Math.max(1,rect.height);
       const dpr=Math.min(devicePixelRatio||1,2), left=w<480?42:54, top=16;
@@ -210,13 +168,8 @@
     }
     window.addEventListener("resize",redimensionner);
     if(typeof ResizeObserver!=="undefined") new ResizeObserver(redimensionner).observe(canvas);
-    document.addEventListener("visibilitychange",()=>{arreter();programmer();});
-    window.addEventListener("pagehide",arreter);
-    window.addEventListener("pageshow",()=>{dernierInstant=null;programmer();});
-    pause.textContent=enPause?"Reprendre":"Pause";
-    actualiser(); redimensionner(); programmer();
+    actualiser(); redimensionner();
   })();
   </script>
 </body>
 </html>
-
