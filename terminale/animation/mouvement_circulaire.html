@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mouvement circulaire uniforme — Repère de Frenet</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #02040d; color: #d9f7ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1120px; margin: auto; padding: 24px 20px; }
+    h1 { margin: 0 0 14px; text-align: center; font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 550; }
+    .informations { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 12px; color: #a7c6da; font-variant-numeric: tabular-nums; }
+    .temps { text-align: center; margin: 0 0 12px; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+    canvas { display: block; width: 100%; height: clamp(350px, 54vw, 590px); }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+    .carte { padding: 16px 20px; border: 1px solid #27445a; border-radius: 6px; background: #07101f; }
+    .choix { display: flex; align-items: center; gap: 10px; min-height: 30px; cursor: pointer; font-weight: 600; }
+    .frenet { color: #5de5b0; } .vitesse { color: #ffd166; }
+    input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: #5de5b0; }
+    #voir-vitesse { accent-color: #ffd166; }
+    .details { margin: 12px 0 0; font-size: .94rem; line-height: 1.6; }
+    .details p { margin: 0; }
+    .echelle { color: #7fa6b8; font-size: .8rem; }
+    .controles { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px 36px; margin-top: 24px; }
+    .etiquette { display: flex; justify-content: space-between; gap: 12px; }
+    output { font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; height: 32px; margin: 6px 0 0; accent-color: #48e9ff; cursor: pointer; }
+    .actions { display: flex; gap: 12px; }
+    button { min-width: 140px; min-height: 46px; padding: 10px 18px; border: 1px solid #27445a; border-radius: 5px; color: #d9f7ff; background: #10283a; font: inherit; cursor: pointer; }
+    button:hover { background: #1b4056; }
+    :focus-visible { outline: 2px solid #48e9ff; outline-offset: 4px; }
+    #erreur:empty { display: none; }
+    @media(max-width:650px) {
+      main { padding: 18px 10px; }
+      .options { grid-template-columns: 1fr; gap: 14px; }
+      .carte { padding: 12px 16px; }
+      .controles { grid-template-columns: 1fr; gap: 16px; }
+      .actions button { flex: 1; min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Mouvement circulaire uniforme</h1>
+    <div class="informations">
+      <span>↺ Sens trigonométrique</span>
+      <span>R = <output id="rayon">2,00</output> m</span>
+      <span>T = <output id="periode">8,00</output> s</span>
+    </div>
+    <p class="temps">t = <output id="temps">0,00</output> s</p>
+    <canvas id="mouvement" width="1080" height="590" role="img" aria-label="Le point M parcourt un cercle dans le sens inverse des aiguilles d’une montre. Le repère de Frenet est attaché à M : uₜ est tangent dans le sens du mouvement, uₙ pointe vers le centre O. La vitesse v est colinéaire à uₜ et de norme constante."></canvas>
+    <div class="options">
+      <div class="carte">
+        <label class="choix frenet"><input id="voir-frenet" type="checkbox" checked> Repère de Frenet (uₜ, uₙ)</label>
+        <div id="details-frenet" class="details frenet">
+          <p>uₜ : tangent, dans le sens du mouvement.</p>
+          <p>uₙ : normal, dirigé vers le centre O.</p>
+        </div>
+      </div>
+      <div class="carte">
+        <label class="choix vitesse"><input id="voir-vitesse" type="checkbox" checked> Vecteur vitesse v(t)</label>
+        <div id="details-vitesse" class="details vitesse">
+          <p>‖v‖ = <output id="norme-vitesse">1,57</output> m/s — constante</p>
+          <p class="echelle" id="echelle-vitesse">Échelle : 1 m/s correspond à 1,5 m sur le repère.</p>
+        </div>
+      </div>
+    </div>
+    <div class="controles">
+      <div>
+        <label class="etiquette" for="instant">Instant t <output id="val-instant" for="instant">0,00 s</output></label>
+        <input id="instant" type="range" min="0" max="8" step="0.01" value="0">
+      </div>
+      <div class="actions">
+        <button id="pause" type="button" title="Pause ou reprise : barre espace">Pause</button>
+        <button id="reset" type="button">Réinitialiser</button>
+      </div>
+    </div>
+    <p id="erreur" role="status"></p>
+    <noscript><p>Activez JavaScript pour utiliser cette animation.</p></noscript>
+  </main>
+  <script>
+  (() => {
+    "use strict";
+    const CONFIG = {
+      RAYON: 2, PERIODE: 8, ANGLE_INITIAL: Math.PI/6,
+      ECHELLE_V: 1.5, // Conversion de la vitesse (m/s) en longueur dessinée (m).
+      LONGUEUR_BASE: 1, // Même longueur graphique pour les deux vecteurs unitaires.
+      X_MIN: -4.5, X_MAX: 4.5, Y_MIN: -3.9, Y_MAX: 3.9,
+      FOND: "#02040d", PLOT: "#07101f", AXES: "#7895ab",
+      FRENET: "#5de5b0", VITESSE: "#ffd166", TRAJECTOIRE: "#6087ad", POINT: "#eaffff"
+    };
+    const canvas=document.getElementById("mouvement"),ctx=canvas.getContext("2d");
+    if(!ctx) { document.getElementById("erreur").textContent="Le dessin Canvas n’est pas disponible dans ce navigateur."; return; }
+    const voirFrenet=document.getElementById("voir-frenet"),voirVitesse=document.getElementById("voir-vitesse");
+    const instant=document.getElementById("instant"),pause=document.getElementById("pause");
+    const tempsTexte=document.getElementById("temps"),instantTexte=document.getElementById("val-instant");
+    const omega=2*Math.PI/CONFIG.PERIODE, vitesse=CONFIG.RAYON*omega;
+    const format=v=>v.toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2});
+    instant.max=CONFIG.PERIODE;
+    document.getElementById("rayon").textContent=format(CONFIG.RAYON);
+    document.getElementById("periode").textContent=format(CONFIG.PERIODE);
+    document.getElementById("norme-vitesse").textContent=format(vitesse);
+    document.getElementById("echelle-vitesse").textContent=`Échelle : 1 m/s correspond à ${format(CONFIG.ECHELLE_V)} m sur le repère.`;
+    let temps=0,geometrie=null,animation=null,dernierInstant=null,scrutation=false;
+    let enPause=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function etat() {
+      const theta=CONFIG.ANGLE_INITIAL+omega*temps, c=Math.cos(theta),s=Math.sin(theta);
+      // Le sens trigonométrique est positif : θ croît, x = R cos θ et y = R sin θ.
+      // uₜ = (-sin θ, cos θ), uₙ = (-cos θ, -sin θ), v = Rω uₜ.
+      return {theta,x:CONFIG.RAYON*c,y:CONFIG.RAYON*s,tx:-s,ty:c,nx:-c,ny:-s};
+    }
+    function fleche(x0,y0,x1,y1,couleur,largeur=2.5,tete=10) {
+      const dx=x1-x0,dy=y1-y0,l=Math.hypot(dx,dy);
+      if(l<2) return;
+      const ux=dx/l,uy=dy/l,h=Math.min(tete,l*.45);
+      ctx.strokeStyle=couleur;ctx.fillStyle=couleur;ctx.lineWidth=largeur;
+      ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1-ux*h*.7,y1-uy*h*.7);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x1-ux*h-uy*h*.42,y1-uy*h+ux*h*.42);
+      ctx.lineTo(x1-ux*h+uy*h*.42,y1-uy*h-ux*h*.42);ctx.closePath();ctx.fill();
+    }
+    function texte(contenu,x,y,couleur,taille=15,alignement="center") {
+      ctx.fillStyle=couleur;ctx.font=`${taille>=18?"600 ":""}${taille}px system-ui`;ctx.textAlign=alignement;ctx.fillText(contenu,x,y);
+    }
+    function dessiner() {
+      if(!geometrie) return;
+      const g=geometrie,e=etat(),px=g.x(e.x),py=g.y(e.y),ox=g.x(0),oy=g.y(0);
+      ctx.setTransform(g.dpr,0,0,g.dpr,0,0);ctx.fillStyle=CONFIG.FOND;ctx.fillRect(0,0,g.w,g.h);
+      ctx.fillStyle=CONFIG.PLOT;ctx.fillRect(g.left,g.top,g.pw,g.ph);
+      ctx.strokeStyle="#14283d";ctx.lineWidth=.7;ctx.beginPath();
+      for(let i=Math.ceil(CONFIG.X_MIN);i<=CONFIG.X_MAX;i++) {ctx.moveTo(g.x(i),g.top);ctx.lineTo(g.x(i),g.top+g.ph);}
+      for(let j=Math.ceil(CONFIG.Y_MIN);j<=CONFIG.Y_MAX;j++) {ctx.moveTo(g.left,g.y(j));ctx.lineTo(g.left+g.pw,g.y(j));}
+      ctx.stroke();
+      fleche(g.left,oy,g.left+g.pw,oy,CONFIG.AXES,1.2,8);
+      fleche(ox,g.top+g.ph,ox,g.top,CONFIG.AXES,1.2,8);
+      const pas=g.pw<440?2:1;
+      for(let i=Math.ceil(CONFIG.X_MIN/pas)*pas;i<=CONFIG.X_MAX;i+=pas) if(i!==0) texte(String(i),g.x(i),oy+17,"#7fa6b8",11);
+      for(let j=Math.ceil(CONFIG.Y_MIN);j<=CONFIG.Y_MAX;j++) if(j!==0) texte(String(j),ox-9,g.y(j)+4,"#7fa6b8",11,"right");
+      texte("x (m)",g.left+g.pw-4,oy-12,"#d9f7ff",13,"right");
+      texte("y (m)",ox+12,g.top+14,"#d9f7ff",13,"left");
+      texte("O",ox-10,oy+18,"#d9f7ff",15,"right");
+      ctx.strokeStyle=CONFIG.TRAJECTOIRE;ctx.lineWidth=1.8;ctx.beginPath();
+      ctx.arc(ox,oy,CONFIG.RAYON*g.unite,0,2*Math.PI);ctx.stroke();
+      // Le rayon pointillé rend la direction normale immédiatement visible.
+      if(voirFrenet.checked) {
+        ctx.strokeStyle="#315048";ctx.lineWidth=1.1;ctx.setLineDash([4,5]);ctx.beginPath();
+        ctx.moveTo(ox,oy);ctx.lineTo(px,py);ctx.stroke();ctx.setLineDash([]);
+      }
+      const radialX=e.x/CONFIG.RAYON,radialY=-e.y/CONFIG.RAYON;
+      if(voirVitesse.checked) {
+        const vx=g.x(e.x+CONFIG.ECHELLE_V*vitesse*e.tx),vy=g.y(e.y+CONFIG.ECHELLE_V*vitesse*e.ty);
+        // La vitesse est colinéaire à uₜ ; son échelle visuelle est différente.
+        fleche(px,py,vx,vy,CONFIG.VITESSE,4,12);
+        texte("v(t)",vx+radialX*18,vy+radialY*18+5,CONFIG.VITESSE,19,radialX>.25?"left":radialX<-.25?"right":"center");
+      }
+      if(voirFrenet.checked) {
+        const tx=g.x(e.x+CONFIG.LONGUEUR_BASE*e.tx),ty=g.y(e.y+CONFIG.LONGUEUR_BASE*e.ty);
+        const nx=g.x(e.x+CONFIG.LONGUEUR_BASE*e.nx),ny=g.y(e.y+CONFIG.LONGUEUR_BASE*e.ny);
+        // Le trait fin de uₜ laisse visible le vecteur vitesse situé sur la même droite.
+        fleche(px,py,tx,ty,CONFIG.FRENET,1.8,10);
+        fleche(px,py,nx,ny,CONFIG.FRENET,2.5,10);
+        texte("uₜ",tx-radialX*18,ty-radialY*18+5,CONFIG.FRENET,19,radialX>.25?"right":radialX<-.25?"left":"center");
+        texte("uₙ",nx+e.tx*17,ny-e.ty*17+5,CONFIG.FRENET,19);
+        // Marque d’angle droit entre les deux directions du repère de Frenet.
+        const a=Math.min(.2,CONFIG.LONGUEUR_BASE*.22);
+        ctx.strokeStyle=CONFIG.FRENET;ctx.lineWidth=1;ctx.globalAlpha=.65;ctx.beginPath();
+        ctx.moveTo(g.x(e.x+a*e.tx),g.y(e.y+a*e.ty));
+        ctx.lineTo(g.x(e.x+a*(e.tx+e.nx)),g.y(e.y+a*(e.ty+e.ny)));
+        ctx.lineTo(g.x(e.x+a*e.nx),g.y(e.y+a*e.ny));ctx.stroke();ctx.globalAlpha=1;
+      }
+      ctx.fillStyle=CONFIG.POINT;ctx.strokeStyle=CONFIG.FOND;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(px,py,7,0,2*Math.PI);ctx.fill();ctx.stroke();
+      texte("M",px+radialX*20,py+radialY*23+6,CONFIG.POINT,22,radialX>.25?"left":radialX<-.25?"right":"center");
+      tempsTexte.textContent=format(temps);instantTexte.textContent=format(temps)+" s";
+      if(!scrutation) instant.value=temps;
+      instant.setAttribute("aria-valuetext",format(temps)+" secondes");
+    }
+    function actualiserAffichage() {
+      document.getElementById("details-frenet").hidden=!voirFrenet.checked;
+      document.getElementById("details-vitesse").hidden=!voirVitesse.checked;
+      dessiner();
+    }
+    function arreter() {if(animation!==null) cancelAnimationFrame(animation);animation=null;dernierInstant=null;}
+    function programmer() {if(!enPause&&!scrutation&&!document.hidden&&animation===null) animation=requestAnimationFrame(animer);}
+    function animer(instantAnimation) {
+      animation=null;if(enPause||scrutation||document.hidden) return;
+      if(dernierInstant!==null) temps=(temps+Math.min(Math.max(0,(instantAnimation-dernierInstant)/1000),.05))%CONFIG.PERIODE;
+      dernierInstant=instantAnimation;dessiner();programmer();
+    }
+    function basculerPause() {enPause=!enPause;pause.textContent=enPause?"Reprendre":"Pause";arreter();programmer();}
+    function reinitialiser() {arreter();temps=0;instant.value=0;dessiner();programmer();}
+    voirFrenet.addEventListener("change",actualiserAffichage);
+    voirVitesse.addEventListener("change",actualiserAffichage);
+    pause.addEventListener("click",basculerPause);
+    document.getElementById("reset").addEventListener("click",reinitialiser);
+    function commencerReglage() {scrutation=true;arreter();}
+    function terminerReglage() {if(!scrutation) return;scrutation=false;dernierInstant=null;programmer();}
+    instant.addEventListener("pointerdown",commencerReglage);
+    window.addEventListener("pointerup",terminerReglage);
+    window.addEventListener("pointercancel",terminerReglage);
+    const touches=["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"];
+    instant.addEventListener("keydown",e=>{if(touches.includes(e.key)) commencerReglage();});
+    instant.addEventListener("keyup",e=>{if(touches.includes(e.key)) terminerReglage();});
+    instant.addEventListener("blur",terminerReglage);
+    instant.addEventListener("input",()=>{temps=Number(instant.value);dernierInstant=null;dessiner();});
+    document.addEventListener("keydown",e=>{
+      if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||(e.target instanceof Element&&e.target.closest("input,button,textarea,select,a,[contenteditable]"))) return;
+      if(e.code==="Space") {e.preventDefault();basculerPause();}
+      else if(e.key.toLowerCase()==="r") {e.preventDefault();reinitialiser();}
+    });
+    function redimensionner() {
+      const rect=canvas.getBoundingClientRect(),w=Math.max(1,rect.width),h=Math.max(1,rect.height),dpr=Math.min(devicePixelRatio||1,2);
+      canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+      const unite=Math.max(.1,Math.min((w-28)/(CONFIG.X_MAX-CONFIG.X_MIN),(h-30)/(CONFIG.Y_MAX-CONFIG.Y_MIN)));
+      const pw=unite*(CONFIG.X_MAX-CONFIG.X_MIN),ph=unite*(CONFIG.Y_MAX-CONFIG.Y_MIN),left=(w-pw)/2,top=(h-ph)/2;
+      geometrie={w,h,dpr,left,top,pw,ph,unite,x:v=>left+(v-CONFIG.X_MIN)*unite,y:v=>top+(CONFIG.Y_MAX-v)*unite};
+      dessiner();
+    }
+    window.addEventListener("resize",redimensionner);
+    if(typeof ResizeObserver!=="undefined") new ResizeObserver(redimensionner).observe(canvas);
+    document.addEventListener("visibilitychange",()=>{arreter();programmer();});
+    window.addEventListener("pagehide",arreter);
+    window.addEventListener("pageshow",()=>{dernierInstant=null;programmer();});
+    pause.textContent=enPause?"Reprendre":"Pause";
+    redimensionner();actualiserAffichage();programmer();
+  })();
+  </script>
+</body>
+</html>
