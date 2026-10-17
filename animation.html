@@ -124,23 +124,69 @@
     }
 
 
-    /* IMAGE */
+    /* ANIMATION */
 
-    .terminale-image {
-      width: 320px;
-      max-width: 80%;
-      margin: 0 auto 45px auto;
-      background-color: #000;
-      padding: 10px;
-      border-radius: 8px;
-    }
+.mini-pong {
+  width: 460px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto 45px;
+  padding: 12px;
+  background: #080808;
+  border: 1px solid #333;
+  border-radius: 10px;
+}
 
-    .terminale-image img {
-      width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 4px;
-    }
+.pong-score {
+  margin-bottom: 10px;
+  text-align: center;
+  color: #ddd;
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#pong {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #000;
+  border-radius: 5px;
+  touch-action: pan-y;
+}
+
+.mini-pong.actif #pong {
+  touch-action: none;
+  cursor: none;
+}
+
+.pong-boutons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.pong-boutons button {
+  min-height: 36px;
+  padding: 7px 16px;
+  border: 1px solid #444;
+  border-radius: 5px;
+  background: transparent;
+  color: #ddd;
+  font: inherit;
+  font-size: .75rem;
+  cursor: pointer;
+}
+
+.pong-boutons button:hover {
+  background: white;
+  color: #111;
+}
+
+.mini-pong :focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
 
 
     /* NAVIGATION */
@@ -208,14 +254,21 @@
   <div class="separator"></div>
 
 
-  <div class="terminale-image">
-
-    <img
-      src="images/image-terminale-2.png"
-      alt="Illustration Terminale Physique Chimie"
-    >
-
+ <div class="mini-pong" id="mini-pong">
+  <div class="pong-score" id="pong-score"
+       role="status" aria-label="Score joueur — ordinateur">
+    0 — 0
   </div>
+
+  <canvas id="pong" width="720" height="360"
+          tabindex="0" aria-label="Mini Pong interactif"></canvas>
+
+  <div class="pong-boutons">
+    <button id="pong-jouer" type="button">Jouer</button>
+    <button id="pong-reset" type="button"
+            aria-label="Recommencer">↺</button>
+  </div>
+</div>
 
   
   <!-- ================================================== -->
@@ -474,6 +527,273 @@
 
 
 </div>
+
+  <script>
+(() => {
+  const cadre = document.getElementById("mini-pong");
+  const canvas = document.getElementById("pong");
+  const ctx = canvas.getContext("2d");
+  const bouton = document.getElementById("pong-jouer");
+  const reset = document.getElementById("pong-reset");
+  const score = document.getElementById("pong-score");
+
+  if (!ctx) {
+    bouton.disabled = reset.disabled = true;
+    return;
+  }
+
+  const W = 720, H = 360;
+  const hauteur = 70, largeur = 10, rayon = 6;
+  const gauche = 24, droite = W - 34;
+  const limite = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  let joueur = H / 2, ordinateur = H / 2;
+  let points = [0, 0];
+  let balle;
+  let etat = "pret";
+  let delai = 0, dernier = null, frame = null;
+  const touches = new Set();
+
+  function servir(direction) {
+    const angle = (Math.random() - .5) * .8;
+    balle = {
+      x: W / 2,
+      y: H / 2,
+      vitesse: 300,
+      vx: direction * 300 * Math.cos(angle),
+      vy: 300 * Math.sin(angle)
+    };
+    delai = .6;
+  }
+
+  function dessiner() {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "#292929";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 12]);
+    ctx.beginPath();
+    ctx.moveTo(W / 2, 12);
+    ctx.lineTo(W / 2, H - 12);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(gauche, joueur - hauteur / 2, largeur, hauteur);
+
+    ctx.fillStyle = "#aaa";
+    ctx.fillRect(droite, ordinateur - hauteur / 2, largeur, hauteur);
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(balle.x, balle.y, rayon, 0, 2 * Math.PI);
+    ctx.fill();
+
+    if (etat === "pause" || etat === "fin") {
+      ctx.fillStyle = "rgba(0,0,0,.8)";
+      ctx.fillRect(W / 2 - 130, H / 2 - 32, 260, 64);
+      ctx.fillStyle = "#fff";
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        etat === "pause" ? "Pause" :
+        points[0] === 5 ? "Gagné !" : "Revanche ?",
+        W / 2, H / 2 + 10
+      );
+    }
+  }
+
+  function interfaceJeu() {
+    score.textContent = `${points[0]} — ${points[1]}`;
+    bouton.textContent =
+      etat === "jeu" ? "Pause" :
+      etat === "pause" ? "Reprendre" :
+      etat === "fin" ? "Rejouer" : "Jouer";
+    cadre.classList.toggle("actif", etat === "jeu");
+  }
+
+  function arreter() {
+    if (frame !== null) cancelAnimationFrame(frame);
+    frame = null;
+    dernier = null;
+    touches.clear();
+  }
+
+  function recommencer() {
+    arreter();
+    points = [0, 0];
+    joueur = ordinateur = H / 2;
+    etat = "pret";
+    servir(-1);
+    interfaceJeu();
+    dessiner();
+  }
+
+  function pause() {
+    if (etat !== "jeu") return;
+    etat = "pause";
+    arreter();
+    interfaceJeu();
+    dessiner();
+  }
+
+  function basculer() {
+    if (etat === "jeu") {
+      pause();
+      return;
+    }
+    if (etat === "fin") recommencer();
+    etat = "jeu";
+    interfaceJeu();
+    canvas.focus({ preventScroll: true });
+    if (frame === null) frame = requestAnimationFrame(animer);
+  }
+
+  function rebond(centre, direction) {
+    const impact = limite((balle.y - centre) / (hauteur / 2), -1, 1);
+    const angle = impact * Math.PI / 3;
+    balle.vitesse = Math.min(550, balle.vitesse + 20);
+    balle.vx = direction * balle.vitesse * Math.cos(angle);
+    balle.vy = balle.vitesse * Math.sin(angle);
+  }
+
+  function point(index) {
+    points[index]++;
+    if (points[index] === 5) {
+      etat = "fin";
+    } else {
+      servir(index === 0 ? 1 : -1);
+    }
+    interfaceJeu();
+  }
+
+  function avancer(dt) {
+    const sens =
+      Number(touches.has("ArrowDown")) -
+      Number(touches.has("ArrowUp"));
+
+    joueur = limite(
+      joueur + sens * 580 * dt,
+      hauteur / 2, H - hauteur / 2
+    );
+
+    const cible = balle.vx > 0 ? balle.y : H / 2;
+    ordinateur = limite(
+      ordinateur + limite(cible - ordinateur, -230 * dt, 230 * dt),
+      hauteur / 2, H - hauteur / 2
+    );
+
+    if (delai > 0) {
+      delai -= dt;
+      return;
+    }
+
+    const ancienX = balle.x;
+    balle.x += balle.vx * dt;
+    balle.y += balle.vy * dt;
+
+    if (balle.y < rayon) {
+      balle.y = 2 * rayon - balle.y;
+      balle.vy = Math.abs(balle.vy);
+    }
+    if (balle.y > H - rayon) {
+      balle.y = 2 * (H - rayon) - balle.y;
+      balle.vy = -Math.abs(balle.vy);
+    }
+
+    const faceG = gauche + largeur + rayon;
+    const faceD = droite - rayon;
+
+    if (
+      balle.vx < 0 &&
+      ancienX >= faceG && balle.x <= faceG &&
+      Math.abs(balle.y - joueur) <= hauteur / 2 + rayon
+    ) {
+      balle.x = faceG;
+      rebond(joueur, 1);
+    } else if (
+      balle.vx > 0 &&
+      ancienX <= faceD && balle.x >= faceD &&
+      Math.abs(balle.y - ordinateur) <= hauteur / 2 + rayon
+    ) {
+      balle.x = faceD;
+      rebond(ordinateur, -1);
+    }
+
+    if (balle.x < -rayon) point(1);
+    else if (balle.x > W + rayon) point(0);
+  }
+
+  function animer(instant) {
+    frame = null;
+    if (etat !== "jeu") return;
+
+    const dt = dernier === null ? 0 :
+      Math.min((instant - dernier) / 1000, .025);
+
+    dernier = instant;
+    avancer(dt);
+    dessiner();
+
+    if (etat === "jeu") frame = requestAnimationFrame(animer);
+  }
+
+  function deplacer(event) {
+    if (etat !== "jeu") return;
+    const rect = canvas.getBoundingClientRect();
+    joueur = limite(
+      (event.clientY - rect.top) / rect.height * H,
+      hauteur / 2, H - hauteur / 2
+    );
+  }
+
+  canvas.addEventListener("pointerdown", event => {
+    if (etat !== "jeu" || event.button !== 0) return;
+    event.preventDefault();
+    canvas.focus({ preventScroll: true });
+    canvas.setPointerCapture(event.pointerId);
+    deplacer(event);
+  });
+
+  canvas.addEventListener("pointermove", event => {
+    if (event.pointerType === "mouse" || event.buttons === 1) {
+      deplacer(event);
+    }
+  });
+
+  canvas.addEventListener("pointercancel", pause);
+
+  canvas.addEventListener("keydown", event => {
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      touches.add(event.key);
+    } else if (event.code === "Space") {
+      event.preventDefault();
+      if (!event.repeat) basculer();
+    }
+  });
+
+  canvas.addEventListener("keyup", event => touches.delete(event.key));
+  canvas.addEventListener("blur", () => touches.clear());
+
+  bouton.addEventListener("click", basculer);
+  reset.addEventListener("click", recommencer);
+  window.addEventListener("blur", pause);
+  window.addEventListener("pagehide", pause);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pause();
+  });
+
+  if (typeof IntersectionObserver !== "undefined") {
+    new IntersectionObserver(entries => {
+      if (!entries[0].isIntersecting) pause();
+    }).observe(canvas);
+  }
+
+  recommencer();
+})();
+</script>
 
 </body>
 
