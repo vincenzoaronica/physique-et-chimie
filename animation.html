@@ -552,11 +552,11 @@
 
   // La difficulté dépend du nombre de points du joueur.
 
-  const niveaux = [
+    const niveaux = [
     {
-      // Premier point : facile.
-      balle: 260,
-      maximum: 420,
+      // Premier point : facile, balle plus rapide.
+      balle: 450,
+      maximum: 650,
       acceleration: 14,
       vitesseIA: 110,
       reaction: .30,
@@ -565,8 +565,8 @@
     },
     {
       // Deuxième point : difficile.
-      balle: 340,
-      maximum: 650,
+      balle: 600,
+      maximum: 850,
       acceleration: 22,
       vitesseIA: 270,
       reaction: .14,
@@ -575,8 +575,8 @@
     },
     {
       // Troisième point : très difficile.
-      balle: 420,
-      maximum: 800,
+      balle: 750,
+      maximum: 1050,
       acceleration: 28,
       vitesseIA: 360,
       reaction: .07,
