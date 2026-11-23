@@ -1,7 +1,5 @@
-
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,7 +12,6 @@
   >
 
   <style>
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -26,6 +23,7 @@
     .container {
       width: 90%;
       max-width: 1100px;
+      box-sizing: border-box;
       margin: auto;
       padding: 60px 20px;
       text-align: center;
@@ -46,7 +44,7 @@
       width: 60%;
       height: 2px;
       background-color: white;
-      margin: 30px auto 50px auto;
+      margin: 30px auto 50px;
       opacity: 0.8;
     }
 
@@ -64,7 +62,7 @@
       font-weight: 300;
       letter-spacing: 1px;
       padding: 8px 5px;
-      transition: all 0.25s ease;
+      transition: opacity 0.25s ease, transform 0.25s ease;
     }
 
     .menu-link:hover {
@@ -86,63 +84,819 @@
       color: white;
     }
 
-    .prepa-image {
-      width: 320px;
-      max-width: 80%;
-      margin: 0 auto 45px auto;
-      background-color: #000;
-      padding: 10px;
-      border-radius: 8px;
+    a:focus-visible {
+      outline: 2px solid white;
+      outline-offset: 5px;
     }
 
-    .prepa-image img {
+    /* Cadre reprenant l'aspect du mini Pong. */
+
+    .mini-pendule {
+      width: 460px;
+      max-width: 100%;
+      box-sizing: border-box;
+      margin: 0 auto 45px;
+      padding: 12px;
+      background: #080808;
+      border: 1px solid #333;
+      border-radius: 10px;
+    }
+
+    .pendule-title {
+      margin: 0 0 10px;
+      text-align: center;
+      color: #ddd;
+      font-size: 1rem;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+      line-height: 1.6;
+    }
+
+    .pendule-scene {
+      position: relative;
       width: 100%;
-      height: auto;
-      display: block;
-      border-radius: 4px;
+      aspect-ratio: 3 / 2;
+      min-height: 240px;
+      overflow: hidden;
+      background: #000;
+      border-radius: 5px;
     }
 
-  </style>
+    .pendule-scene canvas,
+    .pendule-scene svg {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
 
+    /*
+      Seules les masses interceptent les gestes.
+      Le reste de l'encart laisse défiler la page.
+    */
+
+    .pendule-scene [data-mass] {
+      fill: transparent;
+      pointer-events: all;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    .mini-pendule.is-dragging [data-mass] {
+      cursor: grabbing;
+    }
+
+    .pendule-help {
+      margin: 11px 0 1px;
+      color: #aaa;
+      font-size: 0.875rem;
+      font-weight: 300;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .mini-pendule noscript {
+      display: block;
+      margin-top: 12px;
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 40px 10px;
+      }
+
+      .menu-link {
+        font-size: 1rem;
+        line-height: 1.7;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .menu-link {
+        transition: none;
+      }
+
+      .menu-link:hover {
+        transform: none;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="container">
 
-<div class="container">
+    <h1>Prépa au Sup</h1>
 
-  <h1>Prépa au Sup </h1>
+    <p class="subtitle">
+      Physique - Chimie
+    </p>
 
-  <p class="subtitle">
-    Physique - Chimie
-  </p>
+    <div class="separator"></div>
 
-  <div class="separator"></div>
-
-  <div class="prepa-image">
-    <img
-      src="images/nebuleuse-carene-james-webb.jpg"
-      alt="Illustration Prépa Physique Chimie"
+    <figure
+      class="mini-pendule"
+      data-double-pendulum
+      aria-labelledby="pendule-title"
     >
+      <p class="pendule-title" id="pendule-title">
+        Pendule double
+      </p>
+
+      <div class="pendule-scene">
+        <canvas
+          width="720"
+          height="480"
+          role="img"
+          aria-label="Pendule double animé : deux masses, l’une bleue et l’autre dorée, dessinent des trajectoires lumineuses. Saisissez une masse à la souris ou au doigt, ou les deux avec deux doigts, puis relâchez."
+          aria-describedby="pendule-help"
+        >
+          Deux masses reliées par deux tiges oscillent
+          sous l’effet de la gravité.
+        </canvas>
+
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle
+            data-mass="0"
+            cx="-100"
+            cy="-100"
+            r="24"
+          ></circle>
+
+          <circle
+            data-mass="1"
+            cx="-100"
+            cy="-100"
+            r="24"
+          ></circle>
+        </svg>
+      </div>
+
+      <figcaption class="pendule-help" id="pendule-help">
+        Déplacez une masse, puis relâchez.
+      </figcaption>
+
+      <noscript>
+        Activez JavaScript pour voir et déplacer le pendule.
+      </noscript>
+    </figure>
+
+    <div class="menu">
+      <a
+        href="prepa/cours_prepa_sup.html"
+        class="menu-link"
+      >
+        Cours de physique – Préparation au Supérieur →
+      </a>
+    </div>
+
+    <div class="home">
+      <a href="index.html">
+        ← Retour à l’accueil
+      </a>
+    </div>
+
   </div>
 
-  <div class="menu">
+  <script>
+    (() => {
+      'use strict';
 
-    <a href="prepa/cours_prepa_sup.html" class="menu-link">
-      Cours de physique – Préparation au Supérieur →
-    </a>
+      // Deux masses ponctuelles égales et deux tiges de 1 m.
+      // Les angles sont mesurés depuis la verticale descendante.
+      // La gravité reste constante.
 
-  </div>
+      const G = 9.81;
+      const STEP = 1 / 240;
+      const TAU = 2 * Math.PI;
 
-  <div class="home">
+      const COLORS = ['#7ee8f2', '#e9b981'];
 
-    <a href="index.html">
-      ← Retour à l'accueil
-    </a>
+      const wrap = angle =>
+        Math.atan2(Math.sin(angle), Math.cos(angle));
 
-  </div>
+      function derivative([a, b, u, v]) {
+        const s = Math.sin(a - b);
+        const c = Math.cos(a - b);
 
-</div>
+        const f1 = -2 * G * Math.sin(a) - s * v * v;
+        const f2 = -G * Math.sin(b) + s * u * u;
 
+        const determinant = 2 - c * c;
+
+        return [
+          u,
+          v,
+          (f1 - c * f2) / determinant,
+          (2 * f2 - c * f1) / determinant
+        ];
+      }
+
+      // Runge–Kutta d'ordre 4 avec un pas de temps fixe.
+
+      function integrate(state, dt) {
+        const offset = (s, k, h) =>
+          s.map((value, i) => value + k[i] * h);
+
+        const k1 = derivative(state);
+        const k2 = derivative(offset(state, k1, dt / 2));
+        const k3 = derivative(offset(state, k2, dt / 2));
+        const k4 = derivative(offset(state, k3, dt));
+
+        return state.map((value, i) =>
+          value + dt * (
+            k1[i] +
+            2 * k2[i] +
+            2 * k3[i] +
+            k4[i]
+          ) / 6
+        );
+      }
+
+      function positions([a, b]) {
+        const first = {
+          x: Math.sin(a),
+          y: Math.cos(a)
+        };
+
+        return [
+          first,
+          {
+            x: first.x + Math.sin(b),
+            y: first.y + Math.cos(b)
+          }
+        ];
+      }
+
+      // Déplacer la seconde masse peut orienter les deux tiges.
+      // La solution la plus proche évite les sauts du coude.
+
+      function placeEnd(state, target) {
+        const distance = Math.hypot(target.x, target.y);
+
+        if (distance < 1e-6) {
+          return [
+            state[0],
+            state[0] + Math.PI,
+            0,
+            0
+          ];
+        }
+
+        const direction = Math.atan2(target.x, target.y);
+        const opening = Math.acos(Math.min(distance / 2, 1));
+
+        const candidates = [
+          [
+            direction + opening,
+            direction - opening,
+            0,
+            0
+          ],
+          [
+            direction - opening,
+            direction + opening,
+            0,
+            0
+          ]
+        ];
+
+        const cost = candidate =>
+          wrap(candidate[0] - state[0]) ** 2 +
+          wrap(candidate[1] - state[1]) ** 2;
+
+        return cost(candidates[0]) <= cost(candidates[1])
+          ? candidates[0]
+          : candidates[1];
+      }
+
+      function mount(root) {
+        const stage = root.querySelector('.pendule-scene');
+        const canvas = root.querySelector('canvas');
+        const svg = root.querySelector('svg');
+
+        const handles = [
+          ...root.querySelectorAll('[data-mass]')
+        ];
+
+        const context = canvas.getContext('2d');
+
+        const trail = document.createElement('canvas');
+        const ink = trail.getContext('2d');
+
+        if (!context || !ink) {
+          root.querySelector('.pendule-help').textContent =
+            'Votre navigateur ne permet pas d’afficher cette animation.';
+
+          svg.style.display = 'none';
+          return;
+        }
+
+        let state = [2.05, -0.55, 0, 0];
+
+        let width = 1;
+        let height = 1;
+        let scale = 1;
+        let dpr = 1;
+
+        let frame = null;
+        let previousTime = null;
+        let accumulator = 0;
+
+        let visible = true;
+        let interacted = false;
+
+        const pointers = new Map();
+
+        const motion = window.matchMedia(
+          '(prefers-reduced-motion: reduce)'
+        );
+
+        function toScreen(point) {
+          return {
+            x: width / 2 + point.x * scale,
+            y: height / 2 + point.y * scale
+          };
+        }
+
+        function toWorld(event) {
+          const rect = stage.getBoundingClientRect();
+
+          return {
+            x: (
+              (event.clientX - rect.left) *
+              width / rect.width -
+              width / 2
+            ) / scale,
+
+            y: (
+              (event.clientY - rect.top) *
+              height / rect.height -
+              height / 2
+            ) / scale
+          };
+        }
+
+        function clearTrail() {
+          ink.clearRect(0, 0, width, height);
+        }
+
+        function paintTrail(samples, elapsed) {
+          ink.save();
+
+          // Disparition progressive des anciennes trajectoires.
+
+          ink.globalCompositeOperation = 'destination-out';
+
+          ink.fillStyle =
+            `rgba(0, 0, 0, ${1 - Math.exp(-elapsed / 7)})`;
+
+          ink.fillRect(0, 0, width, height);
+
+          ink.globalCompositeOperation = 'source-over';
+          ink.lineCap = 'round';
+          ink.lineJoin = 'round';
+          ink.lineWidth = 1.25;
+
+          for (let mass = 0; mass < 2; mass++) {
+            ink.strokeStyle = COLORS[mass];
+            ink.shadowColor = COLORS[mass];
+            ink.shadowBlur = 6 * dpr;
+            ink.globalAlpha = mass === 0 ? 0.55 : 0.85;
+
+            ink.beginPath();
+
+            samples.forEach((sample, i) => {
+              const p = toScreen(sample[mass]);
+
+              if (i === 0) {
+                ink.moveTo(p.x, p.y);
+              } else {
+                ink.lineTo(p.x, p.y);
+              }
+            });
+
+            ink.stroke();
+          }
+
+          ink.restore();
+        }
+
+        function circle(point, radius, fill) {
+          context.beginPath();
+          context.arc(
+            point.x,
+            point.y,
+            radius,
+            0,
+            TAU
+          );
+
+          context.fillStyle = fill;
+          context.fill();
+        }
+
+        function draw() {
+          context.clearRect(0, 0, width, height);
+
+          context.drawImage(
+            trail,
+            0,
+            0,
+            width,
+            height
+          );
+
+          const pivot = {
+            x: width / 2,
+            y: height / 2
+          };
+
+          const points = positions(state).map(toScreen);
+
+          // Tiges et point de suspension.
+
+          context.lineCap = 'round';
+          context.lineWidth = 1.4;
+
+          context.strokeStyle =
+            'rgba(221, 229, 232, 0.72)';
+
+          context.beginPath();
+          context.moveTo(pivot.x, pivot.y);
+
+          points.forEach(p =>
+            context.lineTo(p.x, p.y)
+          );
+
+          context.stroke();
+
+          circle(pivot, 3.5, '#b3b9be');
+          circle(pivot, 1.4, '#080808');
+
+          // Masses lumineuses.
+
+          points.forEach((p, index) => {
+            const held = [...pointers.values()].some(
+              pointer => pointer.mass === index
+            );
+
+            context.save();
+
+            context.shadowColor = COLORS[index];
+            context.shadowBlur = 16 * dpr;
+
+            circle(
+              p,
+              held ? 8 : 6.5,
+              COLORS[index]
+            );
+
+            context.restore();
+
+            circle(p, 2.3, '#fff8ee');
+
+            if (held) {
+              context.strokeStyle = COLORS[index];
+              context.lineWidth = 1;
+
+              context.beginPath();
+              context.arc(p.x, p.y, 14, 0, TAU);
+              context.stroke();
+            }
+
+            handles[index].setAttribute('cx', p.x);
+            handles[index].setAttribute('cy', p.y);
+          });
+        }
+
+        function running() {
+          return (
+            visible &&
+            !document.hidden &&
+            pointers.size === 0 &&
+            (!motion.matches || interacted)
+          );
+        }
+
+        function stop() {
+          if (frame !== null) {
+            cancelAnimationFrame(frame);
+          }
+
+          frame = null;
+          previousTime = null;
+          accumulator = 0;
+        }
+
+        function sync() {
+          if (!running()) {
+            stop();
+          } else if (frame === null) {
+            frame = requestAnimationFrame(animate);
+          }
+        }
+
+        function animate(time) {
+          frame = null;
+
+          if (!running()) {
+            stop();
+            return;
+          }
+
+          const elapsed = previousTime === null
+            ? 0
+            : Math.min(
+                Math.max(
+                  (time - previousTime) / 1000,
+                  0
+                ),
+                0.05
+              );
+
+          previousTime = time;
+          accumulator += elapsed;
+
+          const samples = [positions(state)];
+
+          while (accumulator >= STEP) {
+            state = integrate(state, STEP);
+
+            state[0] = wrap(state[0]);
+            state[1] = wrap(state[1]);
+
+            samples.push(positions(state));
+
+            accumulator -= STEP;
+          }
+
+          paintTrail(samples, elapsed);
+          draw();
+          sync();
+        }
+
+        function release(event) {
+          const pointer = pointers.get(event.pointerId);
+
+          if (!pointer) return;
+
+          pointers.delete(event.pointerId);
+
+          if (
+            pointer.element.hasPointerCapture(
+              event.pointerId
+            )
+          ) {
+            pointer.element.releasePointerCapture(
+              event.pointerId
+            );
+          }
+
+          // Le pendule repart au repos depuis la position choisie.
+
+          state[2] = 0;
+          state[3] = 0;
+
+          root.classList.toggle(
+            'is-dragging',
+            pointers.size > 0
+          );
+
+          draw();
+          sync();
+        }
+
+        function releaseAll() {
+          [...pointers.keys()].forEach(pointerId => {
+            release({ pointerId });
+          });
+        }
+
+        function placeHeld() {
+          const held = [...pointers.values()];
+
+          const first = held.find(
+            pointer => pointer.mass === 0
+          );
+
+          const second = held.find(
+            pointer => pointer.mass === 1
+          );
+
+          if (first) {
+            if (
+              Math.hypot(
+                first.target.x,
+                first.target.y
+              ) > 1e-6
+            ) {
+              state[0] = Math.atan2(
+                first.target.x,
+                first.target.y
+              );
+            }
+
+            if (second) {
+              const p = positions(state)[0];
+
+              const dx = second.target.x - p.x;
+              const dy = second.target.y - p.y;
+
+              if (Math.hypot(dx, dy) > 1e-6) {
+                state[1] = Math.atan2(dx, dy);
+              }
+            }
+          } else if (second) {
+            state = placeEnd(state, second.target);
+          }
+
+          state[2] = 0;
+          state[3] = 0;
+
+          draw();
+        }
+
+        handles.forEach((element, mass) => {
+          element.addEventListener(
+            'pointerdown',
+            event => {
+              const alreadyHeld = [
+                ...pointers.values()
+              ].some(pointer => pointer.mass === mass);
+
+              if (
+                event.button !== 0 ||
+                alreadyHeld
+              ) {
+                return;
+              }
+
+              event.preventDefault();
+
+              const at = toWorld(event);
+              const p = positions(state)[mass];
+
+              pointers.set(event.pointerId, {
+                mass,
+                element,
+                target: p,
+
+                offset: {
+                  x: at.x - p.x,
+                  y: at.y - p.y
+                }
+              });
+
+              element.setPointerCapture(event.pointerId);
+
+              interacted = true;
+
+              state[2] = 0;
+              state[3] = 0;
+
+              stop();
+              clearTrail();
+
+              root.classList.add('is-dragging');
+
+              draw();
+            }
+          );
+
+          element.addEventListener(
+            'pointermove',
+            event => {
+              const pointer = pointers.get(
+                event.pointerId
+              );
+
+              if (!pointer) return;
+
+              event.preventDefault();
+
+              const at = toWorld(event);
+
+              pointer.target = {
+                x: at.x - pointer.offset.x,
+                y: at.y - pointer.offset.y
+              };
+
+              placeHeld();
+            }
+          );
+
+          element.addEventListener(
+            'pointerup',
+            release
+          );
+
+          element.addEventListener(
+            'pointercancel',
+            release
+          );
+
+          element.addEventListener(
+            'lostpointercapture',
+            release
+          );
+        });
+
+        function resize() {
+          const rect = stage.getBoundingClientRect();
+
+          if (!rect.width || !rect.height) return;
+
+          releaseAll();
+
+          width = rect.width;
+          height = rect.height;
+
+          dpr = Math.min(
+            window.devicePixelRatio || 1,
+            2
+          );
+
+          // Le pendule entier reste toujours dans le cadre.
+
+          scale = Math.max(
+            1,
+            (Math.min(width, height) / 2 - 27) / 2
+          );
+
+          for (const layer of [canvas, trail]) {
+            layer.width = Math.round(width * dpr);
+            layer.height = Math.round(height * dpr);
+          }
+
+          context.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ink.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+          svg.setAttribute(
+            'viewBox',
+            `0 0 ${width} ${height}`
+          );
+
+          clearTrail();
+          draw();
+          sync();
+        }
+
+        // Suspension automatique lorsque l'animation est masquée.
+
+        document.addEventListener(
+          'visibilitychange',
+          () => {
+            if (document.hidden) releaseAll();
+            sync();
+          }
+        );
+
+        window.addEventListener('blur', releaseAll);
+
+        window.addEventListener('pagehide', () => {
+          releaseAll();
+          stop();
+        });
+
+        window.addEventListener('pageshow', sync);
+
+        if (motion.addEventListener) {
+          motion.addEventListener('change', sync);
+        } else {
+          motion.addListener(sync);
+        }
+
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver(entries => {
+            visible = entries[0].isIntersecting;
+
+            if (!visible) releaseAll();
+
+            sync();
+          }).observe(stage);
+        }
+
+        if ('ResizeObserver' in window) {
+          new ResizeObserver(resize).observe(stage);
+        }
+
+        window.addEventListener('resize', resize);
+
+        resize();
+      }
+
+      document
+        .querySelectorAll('[data-double-pendulum]')
+        .forEach(mount);
+    })();
+  </script>
 </body>
-
 </html>
